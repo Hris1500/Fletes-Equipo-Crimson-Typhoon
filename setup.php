@@ -47,25 +47,30 @@ CREATE TABLE IF NOT EXISTS fletes (
 );
 ");
 
-/* Datos de ejemplo (seed) */
-$db->exec("
-INSERT INTO choferes (nombre, telefono, num_licencia) VALUES
- ('Juan Pérez', '4621112233', 'LIC-001'),
- ('Luis Ramírez', '4624445566', 'LIC-002');
+/* Insercion de datos */
+$total = $db->querySingle("SELECT COUNT(*) FROM choferes");
+if ($total == 0) {
+  $db->exec("
+  INSERT INTO choferes (nombre, telefono, num_licencia) VALUES
+  ('Juan Pérez', '4621112233', 'LIC-001'),
+  ('Luis Ramírez', '4624445566', 'LIC-002');
 
-INSERT INTO unidades (placas, tipo, capacidad_kg) VALUES
- ('GTO-123-A', 'Torton', 10000),
- ('GTO-456-B', 'Tráiler', 25000);
+  INSERT INTO unidades (placas, tipo, capacidad_kg) VALUES
+  ('GTO-123-A', 'Torton', 10000),
+  ('GTO-456-B', 'Tráiler', 25000);
 
-INSERT INTO clientes (nombre, telefono, correo, direccion) VALUES
- ('Abarrotes del Bajío', '4627778899', 'contacto@abarrotes.mx', 'Irapuato, Gto.'),
- ('Ferretería Central', '4620001122', 'ventas@ferreteria.mx', 'León, Gto.');
+  INSERT INTO clientes (nombre, telefono, correo, direccion) VALUES
+  ('Abarrotes del Bajío', '4627778899', 'contacto@abarrotes.mx', 'Irapuato, Gto.'),
+  ('Ferretería Central', '4620001122', 'ventas@ferreteria.mx', 'León, Gto.');
 
-INSERT INTO fletes (id_cliente, id_chofer, id_unidad, origen, destino,
-                    descripcion_carga, fecha_salida, monto, estatus, pagado) VALUES
- (1, 1, 1, 'Irapuato', 'Guadalajara', 'Abarrotes', '2026-10-10', 8500, 'en_transito', 0),
- (2, 2, 2, 'León', 'CDMX', 'Material de construcción', '2026-10-05', 15000, 'finalizado', 1),
- (1, 2, 2, 'Irapuato', 'Querétaro', 'Bebidas', '2026-10-14', 6000, 'pendiente', 0);
-");
+  INSERT INTO fletes (id_cliente, id_chofer, id_unidad, origen, destino,
+                      descripcion_carga, fecha_salida, monto, estatus, pagado) VALUES
+  (1, 1, 1, 'Irapuato', 'Guadalajara', 'Abarrotes', '2026-10-10', 8500, 'en_transito', 0),
+  (2, 2, 2, 'León', 'CDMX', 'Material de construcción', '2026-10-05', 15000, 'finalizado', 1),
+  (1, 2, 2, 'Irapuato', 'Querétaro', 'Bebidas', '2026-10-14', 6000, 'pendiente', 0);
+  ");
 
-echo "Base de datos creada correctamente.";
+  echo "Base de datos creada correctamente.";
+} else {
+  echo "LA BASE DE DATOS YA TENÍA DATOS, NO SE INSERTÓ NADA.";
+}
