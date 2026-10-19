@@ -63,7 +63,6 @@ function contexto() {
     return {
         vista: "dashboard",
         clientes: [],
-        // Variables para tu Fase 4:
         kpis: {},
         historialFletes: [],
         reportesIngresos: {},
@@ -73,7 +72,7 @@ function contexto() {
             return this.vista.charAt(0).toUpperCase() + this.vista.slice(1);
         },
 
-        // Funciones para cargar tus datos
+        // Funciones para cargar los datos
         async cargarDashboard() {
             try {
                 this.kpis = await solicitarAPI('dashboard');
