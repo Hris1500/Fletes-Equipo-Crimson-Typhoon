@@ -63,16 +63,47 @@ function contexto() {
     return {
         vista: "dashboard",
         clientes: [],
+        // Variables para tu Fase 4:
+        kpis: {},
+        historialFletes: [],
+        reportesIngresos: {},
 
         titulo_vista() {
-            if (!this.vista) {
-                return "";
-            }
-
-            return this.vista.charAt(0).toUpperCase()
-                + this.vista.slice(1);
+            if (!this.vista) return "";
+            return this.vista.charAt(0).toUpperCase() + this.vista.slice(1);
         },
 
+        // Funciones para cargar tus datos
+        async cargarDashboard() {
+            try {
+                this.kpis = await solicitarAPI('dashboard');
+            } catch (error) { console.error("Error cargando KPIs:", error); }
+        },
 
+        async cargarHistorial() {
+            try {
+                this.historialFletes = await solicitarAPI('historial');
+            } catch (error) { console.error("Error cargando historial:", error); }
+        },
+
+        async cargarReportes() {
+            try {
+                this.reportesIngresos = await solicitarAPI('reportes');
+            } catch (error) { console.error("Error cargando reportes:", error); }
+        },
+
+        // Iniciar todo cuando cargue la app
+        init() {
+            this.cargarDashboard();
+            this.cargarHistorial();
+            this.cargarReportes();
+            
+            // Para recargar datos al cambiar de vista
+            this.$watch('vista', (nuevaVista) => {
+                if (nuevaVista === 'dashboard') this.cargarDashboard();
+                if (nuevaVista === 'historial') this.cargarHistorial();
+                if (nuevaVista === 'reportes') this.cargarReportes();
+            });
+        }
     };
 }
