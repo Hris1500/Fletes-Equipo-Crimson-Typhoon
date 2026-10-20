@@ -116,7 +116,17 @@ try {
                         SUM(CASE WHEN pagado = 0 THEN monto ELSE 0 END) as por_cobrar
                     FROM fletes
                 ");
-                responder(200, $stmt->fetch());
+                $datos = $stmt->fetch();
+                
+                if (!$datos['ganancias_totales']) {
+                    $datos = [
+                        'ganancias_totales' => 0, 
+                        'cobrado' => 0, 
+                        'por_cobrar' => 0
+                    ];
+                }
+                
+                responder(200, $datos);
             }
             break;
 
