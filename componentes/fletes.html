@@ -1,0 +1,52 @@
+
+<section class="vista-fletes" x-data="vistaFletes">
+
+
+    <div class="header-vista">
+
+
+        <input
+                type="search"
+                placeholder="Buscar por origen, destino o cliente..."
+                x-model="busqueda"
+            >
+            <button class="boton-header-nuevo" type="button" @click="abrirFormulario()">
+                Nuevo flete
+            </button>
+
+    </div>
+    <p x-show="cargando">Cargando fletes...</p>
+
+    <p x-show="error" x-text="error"></p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Folio</th>
+                <th>Cliente</th>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Importe</th>
+                <th>Estatus</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <template x-for="flete in fletesFiltrados" :key="flete.id_flete">
+                <tr>
+                    <td x-text="flete.id_flete"></td>
+                    <td x-text="flete.cliente"></td>
+                    <td x-text="flete.origen"></td>
+                    <td x-text="flete.destino"></td>
+                    <td x-text="formatearImporte(flete.monto_cliente)"></td>
+                    <td x-text="flete.estatus"></td>
+                </tr>
+            </template>
+
+            <tr x-show="!cargando && fletesFiltrados.length === 0">
+                <td colspan="6">No se encontraron fletes.</td>
+            </tr>
+        </tbody>
+    </table>
+
+</section>

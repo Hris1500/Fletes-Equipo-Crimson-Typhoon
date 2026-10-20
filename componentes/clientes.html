@@ -1,0 +1,122 @@
+
+<section class="vista-clientes" x-data="vistaClientes">
+
+
+    <div class="header-vista">
+
+        
+            <input
+                type="search"
+                placeholder="Buscar cliente por nombre, teléfono o correo..."
+                x-model="busqueda"
+            >
+        
+            <button class="boton-header-nuevo" type="button" @click="abrirFormulario()">
+                    Nuevo cliente
+            </button>
+    </div>
+
+
+
+    <p x-show="cargando">Cargando clientes...</p>
+    <p x-show="error" x-text="error"></p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Correo</th>
+                <th>Dirección</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <template
+                x-for="cliente in clientesFiltrados"
+                :key="cliente.id_cliente"
+            >
+                <tr>
+                    <td x-text="cliente.id_cliente"></td>
+                    <td x-text="cliente.nombre"></td>
+                    <td x-text="cliente.telefono || 'Sin teléfono'"></td>
+                    <td x-text="cliente.correo || 'Sin correo'"></td>
+                    <td x-text="cliente.direccion || 'Sin dirección'"></td>
+
+                    <td x-text="Number(cliente.activo) === 1 ? 'Activo' : 'Inactivo'"></td>
+
+                    <td>
+                        <button
+                            type="button"
+                            @click="editarCliente(cliente)"
+                        >
+                            Editar
+                        </button>
+                    </td>
+                </tr>
+            </template>
+
+            <tr x-show="!cargando && clientesFiltrados.length === 0">
+                <td colspan="7">No se encontraron clientes.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <form
+        x-show="formularioAbierto"
+        x-cloak
+        @submit.prevent="guardarCliente()"
+    >
+        <h3 x-text="formulario.id_cliente ? 'Editar cliente' : 'Registrar cliente'"></h3>
+
+        <label for="cliente-nombre">Nombre</label>
+        <input
+            id="cliente-nombre"
+            type="text"
+            x-model="formulario.nombre"
+            required
+        >
+
+        <label for="cliente-telefono">Teléfono</label>
+        <input
+            id="cliente-telefono"
+            type="tel"
+            x-model="formulario.telefono"
+        >
+
+        <label for="cliente-correo">Correo electrónico</label>
+        <input
+            id="cliente-correo"
+            type="email"
+            x-model="formulario.correo"
+        >
+
+        <label for="cliente-direccion">Dirección</label>
+        <textarea
+            id="cliente-direccion"
+            x-model="formulario.direccion"
+        ></textarea>
+
+        <label>
+            <input
+                type="checkbox"
+                x-model="formulario.activo"
+            >
+            Cliente activo
+        </label>
+
+        <button type="submit" :disabled="guardando">
+            <span x-text="guardando ? 'Guardando...' : 'Guardar'"></span>
+        </button>
+
+        <button type="button" @click="cerrarFormulario()">
+            Cancelar
+        </button>
+
+        <p x-show="errorFormulario" x-text="errorFormulario"></p>
+    </form>
+
+</section>

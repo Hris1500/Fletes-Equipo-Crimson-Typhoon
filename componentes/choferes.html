@@ -1,0 +1,109 @@
+
+<section class="vista-choferes" x-data="vistaChoferes">
+
+    <div class="header-vista">
+
+
+        <input
+            type="search"
+            placeholder="Buscar por nombre o licencia..."
+            x-model="busqueda"
+        >
+        <button class="boton-header-nuevo" type="button" @click="abrirFormulario()">
+            Nuevo chofer
+        </button>
+    </div>
+
+
+
+
+    <p x-show="cargando">Cargando choferes...</p>
+    <p x-show="error" x-text="error"></p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Licencia</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <template
+                x-for="chofer in choferesFiltrados"
+                :key="chofer.id_chofer"
+            >
+                <tr>
+                    <td x-text="chofer.id_chofer"></td>
+                    <td x-text="chofer.nombre"></td>
+                    <td x-text="chofer.telefono || 'Sin teléfono'"></td>
+                    <td x-text="chofer.num_licencia"></td>
+                    <td x-text="Number(chofer.activo) === 1 ? 'Activo' : 'Inactivo'"></td>
+                    <td>
+                        <button
+                            type="button"
+                            @click="editarChofer(chofer)"
+                        >
+                            Editar
+                        </button>
+                    </td>
+                </tr>
+            </template>
+
+            <tr x-show="!cargando && choferesFiltrados.length === 0">
+                <td colspan="6">No se encontraron choferes.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <form
+        x-show="formularioAbierto"
+        x-cloak
+        @submit.prevent="guardarChofer()"
+    >
+        <h3 x-text="formulario.id_chofer ? 'Editar chofer' : 'Registrar chofer'"></h3>
+
+        <label for="chofer-nombre">Nombre completo</label>
+        <input
+            id="chofer-nombre"
+            type="text"
+            x-model="formulario.nombre"
+            required
+        >
+
+        <label for="chofer-telefono">Teléfono</label>
+        <input
+            id="chofer-telefono"
+            type="tel"
+            x-model="formulario.telefono"
+        >
+
+        <label for="chofer-licencia">Número de licencia</label>
+        <input
+            id="chofer-licencia"
+            type="text"
+            x-model="formulario.num_licencia"
+            required
+        >
+
+        <label>
+            <input type="checkbox" x-model="formulario.activo">
+            Chofer activo
+        </label>
+
+        <button type="submit" :disabled="guardando">
+            <span x-text="guardando ? 'Guardando...' : 'Guardar'"></span>
+        </button>
+
+        <button type="button" @click="cerrarFormulario()">
+            Cancelar
+        </button>
+
+        <p x-show="errorFormulario" x-text="errorFormulario"></p>
+    </form>
+
+</section>
