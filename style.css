@@ -26,7 +26,20 @@ body {
     background-image: radial-gradient(circle at 50% 0%, #151a22 0%, transparent 70%);
 }
 
+input{
+
+    width: 25%;
+}
+
 .app { width: 100%; }
+
+.header-vista{
+    margin-top: 10px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+}
 
 header {
     width: 100%;
@@ -52,6 +65,11 @@ header button {
     align-items: center;
     width: 6rem;
     cursor: pointer;
+}
+
+.boton-header-nuevo{
+
+    width: fit-content;
 }
 
 .cuerpo-templates { justify-content: space-between; }
@@ -118,7 +136,7 @@ main {
 img {
     width: 2.5rem;
     height: 2.5rem;
-    margin-right: 10px;
+    margin-right: 12px;
     filter: invert(1) brightness(2); 
 }
 
@@ -138,7 +156,7 @@ img {
     white-space: nowrap;
 }
 
-.boton-seleccion { font-size: 20px; }
+.boton-seleccion { font-size: 22px; }
 
 .boton-seleccion.selected {
     background-color: rgba(255, 42, 42, 0.1);
