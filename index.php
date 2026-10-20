@@ -138,6 +138,10 @@
 						<?php include("./componentes/creditos.html") ?>
 				</template>
 
+				<template x-if="vista === 'unidades'">
+						<?php include("./componentes/unidades.html") ?>
+				</template>
+
 				
 					<hr>
 				<footer>
