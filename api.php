@@ -1,89 +1,174 @@
-
 <?php
 
-declare(strict_types=1);
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-header('Content-Type: application/json; charset=utf-8');
-
-
-function responder(int $estado, array $datos): never
-{
-    http_response_code($estado);
-
-    echo json_encode(
-        $datos,
-        JSON_UNESCAPED_UNICODE
-    );
-
-    exit;
-}
-function leerJson(): array
-{
-    $contenido = file_get_contents('php://input');
-
-    $datos = json_decode($contenido ?: '', true);
-
-    if (!is_array($datos)) {
-        responder(400, [
-            'error' => 'El cuerpo JSON no es válido.'
-        ]);
-    }
-
-    return $datos;
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
 }
 
-try {
-    // RUTA DE LA BASE DE DATOS
-    $rutaBase = __DIR__ . '/database/fletes.sqlite';
 
-    $directorio = dirname($rutaBase);
+function get_db_connection() {
+    try {
+        $pdo = new PDO("sqlite:" . __DIR__ . "/database.sqlite");
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
-    if (!is_dir($directorio)) {
-        mkdir($directorio, 0775, true);
+        // Poner que corra setup si tabla no existe
+
+        return $pdo;
+    } catch (PDOException $e) {
+        responder(500, ["error" => "Error de conexión a la base de datos: " . $e->getMessage()]);
+        exit();
     }
+}
 
-    $db = new PDO('sqlite:' . $rutaBase);
+function responder($status_code, $data) {
+    http_response_code($status_code);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+}
 
-    $db->setAttribute(
-        PDO::ATTR_ERRMODE,
-        PDO::ERRMODE_EXCEPTION
-    );
+// API CHOFERES
 
-    $db->setAttribute(
-        PDO::ATTR_DEFAULT_FETCH_MODE,
-        PDO::FETCH_ASSOC
-    );
+function get_choferes($pdo, $id = null) {
+    if ($id !== null) {
+        $stmt = $pdo->prepare("SELECT * FROM choferes WHERE id_chofer = :id");
+        $stmt->execute([':id' => $id]);
+        $chofer = $stmt->fetch();
 
-    $metodo = $_SERVER['REQUEST_METHOD'];
-
-    $recurso = $_GET['recurso'] ?? '';
-
-    $id = null;
-
-    if (isset($_GET['id'])) {
-        $id = filter_var(
-            $_GET['id'],
-            FILTER_VALIDATE_INT
-        );
-
-        if ($id === false || $id < 1) {
-            responder(400, [
-                'error' => 'El identificador no es válido.'
-            ]);
+        if ($chofer) {
+            responder(200, $chofer);
+        } else {
+            responder(404, ["mensaje" => "Chofer no encontrado"]);
         }
+    } else {
+        $stmt = $pdo->query("SELECT * FROM choferes");
+        $choferes = $stmt->fetchAll();
+        responder(200, $choferes);
+    }
+}
+
+
+function create_chofer($pdo, $data) {
+    if (empty($data['nombre']) || !isset($data['telefono']) || !isset($data['num_licencia'])) {
+        responder(400, ["error" => "Datos incompletos."]);
+        return;
     }
 
-    switch ($recurso) {
-        default:
-            responder(404, [
-                'error' => 'El recurso solicitado no existe.'
-            ]);
-    }
-
-} catch (Throwable $error) {
-    error_log($error->getMessage());
-
-    responder(500, [
-        'error' => 'Error interno del servidor.'
+    $sql = "INSERT INTO choferes (nombre, telefono, num_licencia) VALUES (:nombre, :telefono, :num_licencia)";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':nombre' => $data['nombre'],
+        ':telefono' => $data['telefono'],
+        ':num_licencia' => $data['num_licencia']
     ]);
+
+    responder(201, [
+        "mensaje" => "Chofer creado con éxito",
+        "id_chofer" => $pdo->lastInsertId()
+    ]);
+}
+
+
+function update_chofer($pdo, $id, $data) {
+    if ($id === null) {
+        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
+        return;
+    }
+
+    if (empty($data['nombre']) || !isset($data['telefono']) || !isset($data['num_licencia'])) {
+        responder(400, ["error" => "Datos incompletos para actualizar."]);
+        return;
+    }
+
+    $sql_id = "SELECT * FROM choferes WHERE id_chofer = :id";
+    $stmt_id = $pdo->prepare($sql_id);
+    $stmt_id->execute([':id' => $id]);
+    $chofer = $stmt_id->fetch();
+
+    if (!$chofer) {
+        responder(404, ["error" => "Chofer no encontrado"]);
+        return;
+    }
+
+    $sql = "UPDATE choferes SET nombre = :nombre, telefono = :telefono, num_licencia = :num_licencia WHERE id_chofer = :id_chofer";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':nombre' => $data['nombre'],
+        ':telefono' => $data['telefono'],
+        ':num_licencia' => $data['num_licencia'],
+        ':id_chofer' => $id
+    ]);
+
+    responder(200, ["mensaje" => "Chofer actualizado con éxito"]);
+
+}
+
+function delete_chofer($pdo, $id) {
+    if ($id === null) {
+        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
+        return;
+    }
+
+    $sql_id = "SELECT * FROM choferes WHERE id_chofer = :id";
+    $stmt_id = $pdo->prepare($sql_id);
+    $stmt_id->execute([':id' => $id]);
+    $chofer = $stmt_id->fetch();
+
+    if (!$chofer) {
+        responder(404, ["error" => "Chofer no encontrado"]);
+        return;
+    }
+
+    $sql_flete = "SELECT 1 FROM fletes WHERE id_chofer = :id LIMIT 1";
+    $stmt_flete = $pdo->prepare($sql_flete);
+    $stmt_flete->execute([':id' => $id]);
+    $flete = $stmt_flete->fetch();
+
+    if ($flete) {
+        $sql = "UPDATE choferes SET activo = 0 WHERE id_chofer = :id";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':id' => $id]);
+
+        responder(200, ["mensaje" => "Chofer desactivado con éxito, ya que tiene fletes asociados"]);
+        return;
+    }
+
+    $stmt = $pdo->prepare("DELETE FROM choferes WHERE id_chofer = :id");
+    $stmt->execute([':id' => $id]);
+
+    if ($stmt->rowCount() > 0) {
+        responder(200, ["mensaje" => "Chofer eliminado con éxito"]);
+    } else {
+        responder(404, ["error" => "Chofer no encontrado"]);
+    }
+}
+
+
+// ENRUTADOR Y CONTROLADOR PRINCIPAL
+
+$pdo = get_db_connection();
+$method = $_SERVER['REQUEST_METHOD'];
+$id = $_GET['id'] ?? null;
+$input = json_decode(file_get_contents('php://input'), true);
+
+switch ($method) {
+    case 'GET':
+        get_choferes($pdo, $id);
+        break;
+
+    case 'POST':
+        create_chofer($pdo, $input);
+        break;
+
+    case 'PUT':
+        update_chofer($pdo, $id, $input);
+        break;
+
+    default:
+        responder(451, ["error" => "Método HTTP no permitido"]);
+        break;
 }
