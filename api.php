@@ -146,6 +146,136 @@ function delete_chofer($pdo, $id) {
     }
 }
 
+// API UNIDADES
+
+function get_unidades($pdo, $id = null) {
+    if ($id !== null) {
+        $stmt = $pdo->prepare("SELECT * FROM unidades WHERE id_unidad = :id");
+        $stmt->execute([':id' => $id]);
+        $unidad = $stmt->fetch();
+
+        if ($unidad) {
+            responder(200, $unidad);
+        } else {
+            responder(404, ["mensaje" => "Unidad no encontrada"]);
+        }
+    } else {
+        $stmt = $pdo->query("SELECT * FROM unidades");
+        $unidades = $stmt->fetchAll();
+        responder(200, $unidades);
+    }
+}
+
+
+function create_unidad($pdo, $data) {
+    $placas = trim((string) ($data['placas'] ?? ''));
+    $tipo = trim((string) ($data['tipo'] ?? ''));
+
+    if (empty($placas) || empty($tipo) || !isset($data['capacidad_kg'])
+            || !is_numeric($data['capacidad_kg'])
+            || !is_finite((float) $data['capacidad_kg'])
+            || (float) $data['capacidad_kg'] <= 0
+        ) {
+        responder(400, ["error" => "Datos incompletos o invalidos."]);
+        return;
+    }
+
+    $sql = "INSERT INTO unidades (placas, tipo, capacidad_kg) VALUES (:placas, :tipo, :capacidad_kg)";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':placas' => $placas,
+        ':tipo' => $tipo,
+        ':capacidad_kg' => $data['capacidad_kg']
+    ]);
+
+    responder(201, [
+        "mensaje" => "Unidad creada con éxito",
+        "id_unidad" => $pdo->lastInsertId()
+    ]);
+}
+
+
+function update_unidad($pdo, $id, $data) {
+    $placas = trim((string) ($data['placas'] ?? ''));
+    $tipo = trim((string) ($data['tipo'] ?? ''));
+
+    if ($id === null) {
+        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
+        return;
+    }
+
+    if (empty($placas) || empty($tipo) || !isset($data['capacidad_kg'])
+            || !is_numeric($data['capacidad_kg'])
+            || !is_finite((float) $data['capacidad_kg'])
+            || (float) $data['capacidad_kg'] <= 0
+        ) {
+        responder(400, ["error" => "Datos incompletos o erróneos para actualizar."]);
+        return;
+    }
+
+    $sql_id = "SELECT * FROM unidades WHERE id_unidad = :id";
+    $stmt_id = $pdo->prepare($sql_id);
+    $stmt_id->execute([':id' => $id]);
+    $unidad = $stmt_id->fetch();
+
+    if (!$unidad) {
+        responder(404, ["error" => "Unidad no encontrada"]);
+        return;
+    }
+
+    $sql = "UPDATE unidades SET placas = :placas, tipo = :tipo, capacidad_kg = :capacidad_kg WHERE id_unidad = :id_unidad";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':placas' => $placas,
+        ':tipo' => $tipo,
+        ':capacidad_kg' => $data['capacidad_kg'],
+        ':id_unidad' => $id
+    ]);
+
+    responder(200, ["mensaje" => "Unidad actualizada con éxito"]);
+
+}
+
+function delete_unidad($pdo, $id) {
+    if ($id === null) {
+        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
+        return;
+    }
+
+    $sql_id = "SELECT * FROM unidades WHERE id_unidad = :id";
+    $stmt_id = $pdo->prepare($sql_id);
+    $stmt_id->execute([':id' => $id]);
+    $unidad = $stmt_id->fetch();
+
+    if (!$unidad) {
+        responder(404, ["error" => "Unidad no encontrada"]);
+        return;
+    }
+
+    $sql_flete = "SELECT 1 FROM fletes WHERE id_unidad = :id LIMIT 1";
+    $stmt_flete = $pdo->prepare($sql_flete);
+    $stmt_flete->execute([':id' => $id]);
+    $flete = $stmt_flete->fetch();
+
+    if ($flete) {
+        $sql = "UPDATE unidades SET activa = 0 WHERE id_unidad = :id";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':id' => $id]);
+
+        responder(200, ["mensaje" => "Unidad desactivada con éxito, ya que tiene fletes asociados"]);
+        return;
+    }
+
+    $stmt = $pdo->prepare("DELETE FROM unidades WHERE id_unidad = :id");
+    $stmt->execute([':id' => $id]);
+
+    if ($stmt->rowCount() > 0) {
+        responder(200, ["mensaje" => "Unidad eliminada con éxito"]);
+    } else {
+        responder(404, ["error" => "Unidad no encontrada"]);
+    }
+}
+
 
 // ENRUTADOR Y CONTROLADOR PRINCIPAL
 
