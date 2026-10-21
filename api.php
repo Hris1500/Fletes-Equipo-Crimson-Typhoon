@@ -17,7 +17,6 @@ function get_db_connection() {
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
-        // Poner que corra setup si tabla no existe
 
         return $pdo;
     } catch (PDOException $e) {
