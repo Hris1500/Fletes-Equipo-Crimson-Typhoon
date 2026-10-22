@@ -277,27 +277,66 @@ function delete_unidad($pdo, $id) {
 }
 
 
-// ENRUTADOR Y CONTROLADOR PRINCIPAL
+// ENRUTADOR Y CONTROLADOR PRINCIPAL pendiente
 
 $pdo = get_db_connection();
 $method = $_SERVER['REQUEST_METHOD'];
+$recurso = $_GET['recurso'] ?? null;
 $id = $_GET['id'] ?? null;
-$input = json_decode(file_get_contents('php://input'), true);
+$input = null;
 
-switch ($method) {
-    case 'GET':
-        get_choferes($pdo, $id);
+if ($method === 'POST' || $method === 'PUT') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        responder(400, ["error" => "JSON inválido."]);
+        exit();
+    }
+}
+
+if ($recurso === null) {
+    responder(400, ["error" => "Se requiere el parámetro 'recurso'"]);
+    exit();
+}
+
+switch ($recurso) {
+    case 'choferes':
+        switch ($method) {
+            case 'GET':
+                get_choferes($pdo, $id);
+                break;
+            case 'POST':
+                create_chofer($pdo, $input);
+                break;
+            case 'PUT':
+                update_chofer($pdo, $id, $input);
+                break;
+            case 'DELETE':
+                delete_chofer($pdo, $id);
+                break;
+            default:
+                responder(405, ["error" => "Método no permitido"]);
+        }
         break;
 
-    case 'POST':
-        create_chofer($pdo, $input);
-        break;
-
-    case 'PUT':
-        update_chofer($pdo, $id, $input);
+    case 'unidades':
+        switch ($method) {
+            case 'GET':
+                get_unidades($pdo, $id);
+                break;
+            case 'POST':
+                create_unidad($pdo, $input);
+                break;
+            case 'PUT':
+                update_unidad($pdo, $id, $input);
+                break;
+            case 'DELETE':
+                delete_unidad($pdo, $id);
+                break;
+            default:
+                responder(405, ["error" => "Método no permitido"]);
+        }
         break;
 
     default:
-        responder(451, ["error" => "Método HTTP no permitido"]);
-        break;
+        responder(404, ["error" => "Recurso no encontrado"]);
 }
