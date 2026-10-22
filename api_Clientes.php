@@ -1,34 +1,20 @@
 <?php
-// ==========================================
-// 1. CONFIGURACIÓN DE CORS Y CABECERAS HTTP
-// ==========================================
+
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Manejo de la petición Preflight (OPTIONS)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// ==========================================
-// 2. CONEXIÓN A LA BASE DE DATOS (PDO)
-// ==========================================
 function get_db_connection() {
     try {
-        $pdo = new PDO("sqlite:" . __DIR__ . "/database.db");
+        $pdo = new PDO("sqlite:" . __DIR__ . "/database.sqlite");
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-
-        // Crear la tabla si no existe
-        $pdo->exec("CREATE TABLE IF NOT EXISTS productos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            precio REAL NOT NULL,
-            existencia INTEGER NOT NULL
-        )");
 
         return $pdo;
     } catch (PDOException $e) {
@@ -37,112 +23,157 @@ function get_db_connection() {
     }
 }
 
-// Función auxiliar para responder en formato JSON
 function responder($status_code, $data) {
     http_response_code($status_code);
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 }
 
-// ==========================================
-// 3. FUNCIONES PARA CADA MÉTODO HTTP
-// ==========================================
+// API CLIENTES
 
-/**
- * Maneja las peticiones GET (Obtener todos o uno por ID)
- */
-function get_productos($pdo, $id = null) {
-    if ($id) {
-        $stmt = $pdo->prepare("SELECT * FROM productos WHERE id = :id");
+function get_clientes($pdo, $id = null) {
+    if ($id !== null) {
+        $stmt = $pdo->prepare("SELECT id_cliente, nombre, telefono, correo, direccion FROM clientes WHERE id_cliente = :id");
         $stmt->execute([':id' => $id]);
-        $producto = $stmt->fetch();
+        $cliente = $stmt->fetch();
 
-        if ($producto) {
-            responder(200, $producto);
+        if ($cliente) {
+            responder(200, $cliente);
         } else {
-            responder(404, ["mensaje" => "Producto no encontrado"]);
+            responder(404, ["mensaje" => "Cliente no encontrado"]);
         }
     } else {
-        $stmt = $pdo->query("SELECT * FROM productos");
-        $productos = $stmt->fetchAll();
-        responder(200, $productos);
+        $stmt = $pdo->query("SELECT id_cliente, nombre, telefono, correo, direccion FROM clientes ORDER BY id_cliente");
+        $clientes = $stmt->fetchAll();
+        responder(200, $clientes);
     }
 }
 
-/**
- * Maneja las peticiones POST (Crear nuevo producto)
- */
-function create_producto($pdo, $data) {
-    if (empty($data['nombre']) || !isset($data['precio']) || !isset($data['existencia'])) {
-        responder(400, ["error" => "Datos incompletos. Se requiere nombre, precio y existencia."]);
+function create_cliente($pdo, $data) {
+    if (!is_array($data)) {
+        responder(400, ["error" => "Datos de entrada no válidos"]);
         return;
     }
 
-    $sql = "INSERT INTO productos (nombre, precio, existencia) VALUES (:nombre, :precio, :existencia)";
+    if (!isset($data['nombre']) || !is_string($data['nombre'])) {
+        responder(400, ["error" => "El campo 'nombre' es obligatorio y debe ser texto."]);
+        return;
+    }
+
+    $nombre = trim($data['nombre']);
+
+    if ($nombre === '') {
+        responder(400, ["error" => "El campo 'nombre' no puede estar vacío."]);
+        return;
+    }
+
+    $campos = ['telefono', 'correo', 'direccion'];
+
+    foreach ($campos as $campo) {
+        if (!isset($data[$campo]) || !is_string($data[$campo])) {
+            responder(400, ["error" => "El campo '$campo' es obligatorio y debe ser texto."]);
+            return;
+        }
+    }
+
+    $correo = trim($data['correo']);
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        responder(400, ["error" => "El campo 'correo' debe tener un formato válido."]);
+        return;
+    }
+
+    $sql = "INSERT INTO clientes (nombre, telefono, correo, direccion) VALUES (:nombre, :telefono, :correo, :direccion)";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
-        ':nombre' => $data['nombre'],
-        ':precio' => $data['precio'],
-        ':existencia' => $data['existencia']
+        ':nombre' => $nombre,
+        ':telefono' => trim($data['telefono']),
+        ':correo' => $correo,
+        ':direccion' => trim($data['direccion'])
     ]);
-
-    responder(201, [
-        "mensaje" => "Producto creado con éxito",
-        "id" => $pdo->lastInsertId()
-    ]);
+    responder(201, ["mensaje" => "Cliente creado con éxito", "id" => $pdo->lastInsertId()]);
 }
 
-/**
- * Maneja las peticiones PUT (Actualizar producto existente)
- */
-function update_producto($pdo, $id, $data) {
-    if (!$id) {
+function update_cliente($pdo, $id, $data) {
+    if ($id === null) {
         responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
         return;
     }
 
-    if (empty($data['nombre']) || !isset($data['precio']) || !isset($data['existencia'])) {
-        responder(400, ["error" => "Datos incompletos para actualizar."]);
+    if (!is_array($data)) {
+        responder(400, ["error" => "Datos de entrada no válidos"]);
         return;
     }
 
-    $sql = "UPDATE productos SET nombre = :nombre, precio = :precio, existencia = :existencia WHERE id = :id";
+    if (!isset($data['nombre']) || !is_string($data['nombre'])) {
+        responder(400, ["error" => "El campo 'nombre' es obligatorio y debe ser texto."]);
+        return;
+    }
+
+    $nombre = trim($data['nombre']);
+
+    if ($nombre === '') {
+        responder(400, ["error" => "El campo 'nombre' no puede estar vacío."]);
+        return;
+    }
+
+    $campos = ['telefono', 'correo', 'direccion'];
+
+    foreach ($campos as $campo) {
+        if (!isset($data[$campo]) || !is_string($data[$campo])) {
+            responder(400, ["error" => "El campo '$campo' es obligatorio y debe ser texto."]);
+            return;
+        }
+    }
+
+    $correo = trim($data['correo']);
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        responder(400, ["error" => "El campo 'correo' debe tener un formato válido."]);
+        return;
+    }
+
+    $sql = "UPDATE clientes SET nombre = :nombre, telefono = :telefono, correo = :correo, direccion = :direccion WHERE id_cliente = :id";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
-        ':nombre' => $data['nombre'],
-        ':precio' => $data['precio'],
-        ':existencia' => $data['existencia'],
+        ':nombre' => $nombre,
+        ':telefono' => trim($data['telefono']),
+        ':correo' => $correo,
+        ':direccion' => trim($data['direccion']),
         ':id' => $id
     ]);
 
     if ($stmt->rowCount() > 0) {
-        responder(200, ["mensaje" => "Producto actualizado con éxito"]);
-    } else {
-        responder(404, ["mensaje" => "Producto no encontrado o sin cambios"]);
+        responder(200, ["mensaje" => "Cliente actualizado con éxito"]);
+        return;
     }
+    $stmt = $pdo->prepare("SELECT 1 FROM clientes WHERE id_cliente = :id");
+    $stmt->execute([':id' => $id]);
+
+    if ($stmt->fetch()) {
+        responder(200, ["mensaje" => "No se realizaron cambios en el cliente"]);
+    } else {
+        responder(404, ["mensaje" => "Cliente no encontrado"]);
+    }
+
 }
 
-/**
- * Maneja las peticiones DELETE (Eliminar producto por ID)
- */
-function delete_producto($pdo, $id) {
-    if (!$id) {
+
+function delete_cliente($pdo, $id) {
+    if ($id === null) {
         responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
         return;
     }
 
-    $stmt = $pdo->prepare("DELETE FROM productos WHERE id = :id");
+    $stmt = $pdo->prepare("DELETE FROM clientes WHERE id_cliente = :id");
     $stmt->execute([':id' => $id]);
 
     if ($stmt->rowCount() > 0) {
-        responder(200, ["mensaje" => "Producto eliminado con éxito"]);
+        responder(200, ["mensaje" => "Cliente eliminado con éxito"]);
     } else {
-        responder(404, ["mensaje" => "Producto no encontrado"]);
+        responder(404, ["mensaje" => "Cliente no encontrado"]);
     }
 }
 
-// ==========================================
-// 4. ENRUTADOR Y CONTROLADOR PRINCIPAL
-// ==========================================
+// ENRUTADOR Y CONTROLADOR PRINCIPAL
+
 $pdo = get_db_connection();
 $method = $_SERVER['REQUEST_METHOD'];
 $id = $_GET['id'] ?? null;
@@ -150,22 +181,22 @@ $input = json_decode(file_get_contents('php://input'), true);
 
 switch ($method) {
     case 'GET':
-        get_productos($pdo, $id);
+        get_clientes($pdo, $id);
         break;
 
     case 'POST':
-        create_producto($pdo, $input);
+        create_cliente($pdo, $input);
         break;
 
     case 'PUT':
-        update_producto($pdo, $id, $input);
+        update_cliente($pdo, $id, $input);
         break;
 
     case 'DELETE':
-        delete_producto($pdo, $id);
+        delete_cliente($pdo, $id);
         break;
 
     default:
-        responder(451, ["error" => "Método HTTP no permitido"]);
+        responder(405, ["error" => "Método HTTP no permitido"]);
         break;
 }
