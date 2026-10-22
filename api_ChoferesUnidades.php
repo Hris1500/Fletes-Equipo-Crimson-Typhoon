@@ -277,7 +277,7 @@ function delete_unidad($pdo, $id) {
 }
 
 
-// ENRUTADOR Y CONTROLADOR PRINCIPAL pendiente
+// ENRUTADOR Y CONTROLADOR PRINCIPAL
 
 $pdo = get_db_connection();
 $method = $_SERVER['REQUEST_METHOD'];
