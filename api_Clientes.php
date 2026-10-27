@@ -1,202 +1,193 @@
+
 <?php
 
-header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
+function responderCliente($codigo, $datos) {
+    http_response_code($codigo);
+    echo json_encode($datos, JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
-function get_db_connection() {
+function conectarClientes() {
     try {
         $pdo = new PDO("sqlite:" . __DIR__ . "/database.sqlite");
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-
+        $pdo->exec("PRAGMA foreign_keys = ON");
         return $pdo;
     } catch (PDOException $e) {
-        responder(500, ["error" => "Error de conexión a la base de datos: " . $e->getMessage()]);
-        exit();
+        responderCliente(500, ["error" => "No se pudo conectar con SQLite."]);
     }
 }
 
-function responder($status_code, $data) {
-    http_response_code($status_code);
-    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+function validarCliente($entrada) {
+    if (!is_array($entrada)) {
+        responderCliente(400, ["error" => "El JSON enviado no es válido."]);
+    }
+
+    $nombre = trim((string) ($entrada["nombre"] ?? ""));
+    $telefono = trim((string) ($entrada["telefono"] ?? ""));
+    $correo = trim((string) ($entrada["correo"] ?? ""));
+    $direccion = trim((string) ($entrada["direccion"] ?? ""));
+
+    if ($nombre === "") {
+        responderCliente(400, ["error" => "El nombre es obligatorio."]);
+    }
+
+    if ($correo !== "" && !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        responderCliente(400, ["error" => "El correo electrónico no es válido."]);
+    }
+
+    return [
+        "nombre" => $nombre,
+        "telefono" => $telefono,
+        "correo" => $correo,
+        "direccion" => $direccion
+    ];
 }
 
-// API CLIENTES
+$pdo = conectarClientes();
+$metodo = $_SERVER["REQUEST_METHOD"];
+$id = null;
 
-function get_clientes($pdo, $id = null) {
-    if ($id !== null) {
-        $stmt = $pdo->prepare("SELECT id_cliente, nombre, telefono, correo, direccion FROM clientes WHERE id_cliente = :id");
-        $stmt->execute([':id' => $id]);
-        $cliente = $stmt->fetch();
+if (isset($_GET["id"])) {
+    $id = filter_var($_GET["id"], FILTER_VALIDATE_INT);
 
-        if ($cliente) {
-            responder(200, $cliente);
-        } else {
-            responder(404, ["mensaje" => "Cliente no encontrado"]);
-        }
-    } else {
-        $stmt = $pdo->query("SELECT id_cliente, nombre, telefono, correo, direccion FROM clientes ORDER BY id_cliente");
-        $clientes = $stmt->fetchAll();
-        responder(200, $clientes);
+    if ($id === false || $id < 1) {
+        responderCliente(400, ["error" => "ID no válido."]);
     }
 }
 
-function create_cliente($pdo, $data) {
-    if (!is_array($data)) {
-        responder(400, ["error" => "Datos de entrada no válidos"]);
-        return;
+$entrada = null;
+
+if (in_array($metodo, ["POST", "PUT"], true)) {
+    $entrada = json_decode(file_get_contents("php://input"), true);
+
+    if (!is_array($entrada)) {
+        responderCliente(400, ["error" => "El JSON enviado no es válido."]);
     }
+}
 
-    if (!isset($data['nombre']) || !is_string($data['nombre'])) {
-        responder(400, ["error" => "El campo 'nombre' es obligatorio y debe ser texto."]);
-        return;
+try {
+    switch ($metodo) {
+        case "GET":
+            if ($id !== null) {
+                $stmt = $pdo->prepare(
+                    "SELECT id_cliente, nombre, telefono, correo, direccion, activo
+                     FROM clientes WHERE id_cliente = :id"
+                );
+                $stmt->execute([":id" => $id]);
+                $cliente = $stmt->fetch();
+
+                if (!$cliente) {
+                    responderCliente(404, ["error" => "Cliente no encontrado."]);
+                }
+
+                responderCliente(200, $cliente);
+            }
+
+            $stmt = $pdo->query(
+                "SELECT id_cliente, nombre, telefono, correo, direccion, activo
+                 FROM clientes ORDER BY id_cliente"
+            );
+
+            responderCliente(200, $stmt->fetchAll());
+
+        case "POST":
+            $datos = validarCliente($entrada);
+
+            $stmt = $pdo->prepare(
+                "INSERT INTO clientes
+                 (nombre, telefono, correo, direccion, activo)
+                 VALUES (:nombre, :telefono, :correo, :direccion, 1)"
+            );
+
+            $stmt->execute([
+                ":nombre" => $datos["nombre"],
+                ":telefono" => $datos["telefono"],
+                ":correo" => $datos["correo"],
+                ":direccion" => $datos["direccion"]
+            ]);
+
+            responderCliente(201, [
+                "mensaje" => "Cliente creado correctamente.",
+                "id_cliente" => (int) $pdo->lastInsertId()
+            ]);
+
+        case "PUT":
+            if ($id === null) {
+                responderCliente(400, ["error" => "Se requiere el ID del cliente."]);
+            }
+
+            $datos = validarCliente($entrada);
+
+            $stmt = $pdo->prepare(
+                "SELECT id_cliente FROM clientes WHERE id_cliente = :id"
+            );
+            $stmt->execute([":id" => $id]);
+
+            if (!$stmt->fetch()) {
+                responderCliente(404, ["error" => "Cliente no encontrado."]);
+            }
+
+            $activo = array_key_exists("activo", $entrada)
+                ? (int) (bool) $entrada["activo"]
+                : null;
+
+            if ($activo === null) {
+                $sql = "UPDATE clientes SET
+                        nombre = :nombre, telefono = :telefono,
+                        correo = :correo, direccion = :direccion
+                        WHERE id_cliente = :id";
+            } else {
+                $sql = "UPDATE clientes SET
+                        nombre = :nombre, telefono = :telefono,
+                        correo = :correo, direccion = :direccion,
+                        activo = :activo
+                        WHERE id_cliente = :id";
+            }
+
+            $stmt = $pdo->prepare($sql);
+
+            $parametros = [
+                ":nombre" => $datos["nombre"],
+                ":telefono" => $datos["telefono"],
+                ":correo" => $datos["correo"],
+                ":direccion" => $datos["direccion"],
+                ":id" => $id
+            ];
+
+            if ($activo !== null) {
+                $parametros[":activo"] = $activo;
+            }
+
+            $stmt->execute($parametros);
+
+            responderCliente(200, ["mensaje" => "Cliente actualizado correctamente."]);
+
+        case "DELETE":
+            if ($id === null) {
+                responderCliente(400, ["error" => "Se requiere el ID del cliente."]);
+            }
+
+            $stmt = $pdo->prepare(
+                "DELETE FROM clientes WHERE id_cliente = :id"
+            );
+            $stmt->execute([":id" => $id]);
+
+            if ($stmt->rowCount() === 0) {
+                responderCliente(404, ["error" => "Cliente no encontrado."]);
+            }
+
+            responderCliente(200, ["mensaje" => "Cliente eliminado correctamente."]);
+
+        default:
+            header("Allow: GET, POST, PUT, DELETE, OPTIONS");
+            responderCliente(405, ["error" => "Método no permitido."]);
     }
-
-    $nombre = trim($data['nombre']);
-
-    if ($nombre === '') {
-        responder(400, ["error" => "El campo 'nombre' no puede estar vacío."]);
-        return;
-    }
-
-    $campos = ['telefono', 'correo', 'direccion'];
-
-    foreach ($campos as $campo) {
-        if (!isset($data[$campo]) || !is_string($data[$campo])) {
-            responder(400, ["error" => "El campo '$campo' es obligatorio y debe ser texto."]);
-            return;
-        }
-    }
-
-    $correo = trim($data['correo']);
-    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-        responder(400, ["error" => "El campo 'correo' debe tener un formato válido."]);
-        return;
-    }
-
-    $sql = "INSERT INTO clientes (nombre, telefono, correo, direccion) VALUES (:nombre, :telefono, :correo, :direccion)";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':nombre' => $nombre,
-        ':telefono' => trim($data['telefono']),
-        ':correo' => $correo,
-        ':direccion' => trim($data['direccion'])
+} catch (PDOException $e) {
+    responderCliente(500, [
+        "error" => "Error al procesar la operación de clientes."
     ]);
-    responder(201, ["mensaje" => "Cliente creado con éxito", "id" => $pdo->lastInsertId()]);
-}
-
-function update_cliente($pdo, $id, $data) {
-    if ($id === null) {
-        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
-        return;
-    }
-
-    if (!is_array($data)) {
-        responder(400, ["error" => "Datos de entrada no válidos"]);
-        return;
-    }
-
-    if (!isset($data['nombre']) || !is_string($data['nombre'])) {
-        responder(400, ["error" => "El campo 'nombre' es obligatorio y debe ser texto."]);
-        return;
-    }
-
-    $nombre = trim($data['nombre']);
-
-    if ($nombre === '') {
-        responder(400, ["error" => "El campo 'nombre' no puede estar vacío."]);
-        return;
-    }
-
-    $campos = ['telefono', 'correo', 'direccion'];
-
-    foreach ($campos as $campo) {
-        if (!isset($data[$campo]) || !is_string($data[$campo])) {
-            responder(400, ["error" => "El campo '$campo' es obligatorio y debe ser texto."]);
-            return;
-        }
-    }
-
-    $correo = trim($data['correo']);
-    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-        responder(400, ["error" => "El campo 'correo' debe tener un formato válido."]);
-        return;
-    }
-
-    $sql = "UPDATE clientes SET nombre = :nombre, telefono = :telefono, correo = :correo, direccion = :direccion WHERE id_cliente = :id";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':nombre' => $nombre,
-        ':telefono' => trim($data['telefono']),
-        ':correo' => $correo,
-        ':direccion' => trim($data['direccion']),
-        ':id' => $id
-    ]);
-
-    if ($stmt->rowCount() > 0) {
-        responder(200, ["mensaje" => "Cliente actualizado con éxito"]);
-        return;
-    }
-    $stmt = $pdo->prepare("SELECT 1 FROM clientes WHERE id_cliente = :id");
-    $stmt->execute([':id' => $id]);
-
-    if ($stmt->fetch()) {
-        responder(200, ["mensaje" => "No se realizaron cambios en el cliente"]);
-    } else {
-        responder(404, ["mensaje" => "Cliente no encontrado"]);
-    }
-
-}
-
-
-function delete_cliente($pdo, $id) {
-    if ($id === null) {
-        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
-        return;
-    }
-
-    $stmt = $pdo->prepare("DELETE FROM clientes WHERE id_cliente = :id");
-    $stmt->execute([':id' => $id]);
-
-    if ($stmt->rowCount() > 0) {
-        responder(200, ["mensaje" => "Cliente eliminado con éxito"]);
-    } else {
-        responder(404, ["mensaje" => "Cliente no encontrado"]);
-    }
-}
-
-// ENRUTADOR Y CONTROLADOR PRINCIPAL
-
-$pdo = get_db_connection();
-$method = $_SERVER['REQUEST_METHOD'];
-$id = $_GET['id'] ?? null;
-$input = json_decode(file_get_contents('php://input'), true);
-
-switch ($method) {
-    case 'GET':
-        get_clientes($pdo, $id);
-        break;
-
-    case 'POST':
-        create_cliente($pdo, $input);
-        break;
-
-    case 'PUT':
-        update_cliente($pdo, $id, $input);
-        break;
-
-    case 'DELETE':
-        delete_cliente($pdo, $id);
-        break;
-
-    default:
-        responder(405, ["error" => "Método HTTP no permitido"]);
-        break;
 }

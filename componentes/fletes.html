@@ -1,52 +1,202 @@
 
 <section class="vista-fletes" x-data="vistaFletes">
-
-
     <div class="header-vista">
-
-
         <input
-                type="search"
-                placeholder="Buscar por origen, destino o cliente..."
-                x-model="busqueda"
-            >
-            <button class="boton-header-nuevo" type="button" @click="abrirFormulario()">
-                Nuevo flete
-            </button>
+            type="search"
+            placeholder="Buscar flete, cliente, placas, origen o destino..."
+            x-model="busqueda"
+        >
 
+        <button
+            type="button"
+            class="boton-header-nuevo"
+            @click="abrirFormulario()"
+        >
+            Nuevo flete
+        </button>
     </div>
-    <p x-show="cargando">Cargando fletes...</p>
 
+    <p x-show="cargando">Cargando fletes...</p>
     <p x-show="error" x-text="error"></p>
 
     <table>
         <thead>
             <tr>
-                <th>Folio</th>
+                <th>ID</th>
                 <th>Cliente</th>
+                <th>Chofer</th>
+                <th>Unidad</th>
                 <th>Origen</th>
                 <th>Destino</th>
-                <th>Importe</th>
+                <th>Salida</th>
+                <th>Entrega</th>
+                <th>Monto</th>
                 <th>Estatus</th>
+                <th>Pago</th>
+                <th>Acciones</th>
             </tr>
         </thead>
 
         <tbody>
-            <template x-for="flete in fletesFiltrados" :key="flete.id_flete">
+            <template
+                x-for="flete in fletesFiltrados"
+                :key="flete.id_flete"
+            >
                 <tr>
                     <td x-text="flete.id_flete"></td>
                     <td x-text="flete.cliente"></td>
+                    <td x-text="flete.chofer"></td>
+                    <td x-text="flete.placas"></td>
                     <td x-text="flete.origen"></td>
                     <td x-text="flete.destino"></td>
-                    <td x-text="formatearImporte(flete.monto_cliente)"></td>
-                    <td x-text="flete.estatus"></td>
+                    <td x-text="flete.fecha_salida || 'Sin fecha'"></td>
+                    <td x-text="flete.fecha_entrega || 'Sin fecha'"></td>
+                    <td x-text="new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(flete.monto)"></td>
+                    <td x-text="({
+                        pendiente: 'Pendiente',
+                        en_transito: 'En tránsito',
+                        finalizado: 'Finalizado'
+                    })[flete.estatus] || flete.estatus"></td>
+                    <td x-text="Number(flete.pagado) === 1 ? 'Pagado' : 'Por pagar'"></td>
+
+                    <td>
+                        <button
+                            type="button"
+                            @click="editarFlete(flete)"
+                        >
+                            Editar
+                        </button>
+                    </td>
                 </tr>
             </template>
 
             <tr x-show="!cargando && fletesFiltrados.length === 0">
-                <td colspan="6">No se encontraron fletes.</td>
+                <td colspan="12">No se encontraron fletes.</td>
             </tr>
         </tbody>
     </table>
 
+    <form
+        x-show="formularioAbierto"
+        x-cloak
+        @submit.prevent="guardarFlete()"
+    >
+        <h3 x-text="formulario.id_flete ? 'Editar flete' : 'Registrar flete'"></h3>
+
+        <label for="flete-cliente">Cliente</label>
+        <select
+            id="flete-cliente"
+            x-model="formulario.id_cliente"
+            required
+        >
+            <option value="">Selecciona un cliente</option>
+            <template x-for="cliente in clientes" :key="cliente.id_cliente">
+                <option
+                    :value="String(cliente.id_cliente)"
+                    x-text="cliente.nombre"
+                ></option>
+            </template>
+        </select>
+
+        <label for="flete-chofer">Chofer</label>
+        <select
+            id="flete-chofer"
+            x-model="formulario.id_chofer"
+            required
+        >
+            <option value="">Selecciona un chofer</option>
+            <template x-for="chofer in choferes" :key="chofer.id_chofer">
+                <option
+                    :value="String(chofer.id_chofer)"
+                    x-text="chofer.nombre"
+                ></option>
+            </template>
+        </select>
+
+        <label for="flete-unidad">Unidad</label>
+        <select
+            id="flete-unidad"
+            x-model="formulario.id_unidad"
+            required
+        >
+            <option value="">Selecciona una unidad</option>
+            <template x-for="unidad in unidades" :key="unidad.id_unidad">
+                <option
+                    :value="String(unidad.id_unidad)"
+                    x-text="unidad.placas + ' - ' + (unidad.tipo || 'Sin tipo')"
+                ></option>
+            </template>
+        </select>
+
+        <label for="flete-origen">Origen</label>
+        <input
+            id="flete-origen"
+            type="text"
+            x-model="formulario.origen"
+            required
+        >
+
+        <label for="flete-destino">Destino</label>
+        <input
+            id="flete-destino"
+            type="text"
+            x-model="formulario.destino"
+            required
+        >
+
+        <label for="flete-descripcion">Descripción de la carga</label>
+        <textarea
+            id="flete-descripcion"
+            x-model="formulario.descripcion_carga"
+        ></textarea>
+
+        <label for="flete-salida">Fecha de salida</label>
+        <input
+            id="flete-salida"
+            type="date"
+            x-model="formulario.fecha_salida"
+        >
+
+        <label for="flete-entrega">Fecha de entrega</label>
+        <input
+            id="flete-entrega"
+            type="date"
+            x-model="formulario.fecha_entrega"
+        >
+
+        <label for="flete-monto">Monto en pesos</label>
+        <input
+            id="flete-monto"
+            type="number"
+            min="0.01"
+            step="0.01"
+            x-model="formulario.monto"
+            required
+        >
+
+        <label for="flete-estatus">Estatus</label>
+        <select
+            id="flete-estatus"
+            x-model="formulario.estatus"
+            required
+        >
+            <option value="pendiente">Pendiente</option>
+            <option value="en_transito">En tránsito</option>
+            <option value="finalizado">Finalizado</option>
+        </select>
+
+        <p>
+            El estado del pago se administra desde la sección Fletes por pagar.
+        </p>
+
+        <button type="submit" :disabled="guardando">
+            <span x-text="guardando ? 'Guardando...' : 'Guardar flete'"></span>
+        </button>
+
+        <button type="button" @click="cerrarFormulario()">
+            Cancelar
+        </button>
+
+        <p x-show="errorFormulario" x-text="errorFormulario"></p>
+    </form>
 </section>

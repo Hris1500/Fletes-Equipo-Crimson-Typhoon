@@ -1,342 +1,336 @@
+
 <?php
 
-header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
+function responderCU($codigo, $datos) {
+    http_response_code($codigo);
+    echo json_encode($datos, JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
-
-function get_db_connection() {
+function conectarCU() {
     try {
         $pdo = new PDO("sqlite:" . __DIR__ . "/database.sqlite");
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-
-
+        $pdo->exec("PRAGMA foreign_keys = ON");
         return $pdo;
     } catch (PDOException $e) {
-        responder(500, ["error" => "Error de conexión a la base de datos: " . $e->getMessage()]);
-        exit();
+        responderCU(500, ["error" => "No se pudo conectar con SQLite."]);
     }
 }
 
-function responder($status_code, $data) {
-    http_response_code($status_code);
-    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+function leerEntradaCU() {
+    $datos = json_decode(file_get_contents("php://input"), true);
+
+    if (!is_array($datos)) {
+        responderCU(400, ["error" => "El JSON enviado no es válido."]);
+    }
+
+    return $datos;
 }
 
-// API CHOFERES
+function validarIdCU($id) {
+    if ($id === null || filter_var($id, FILTER_VALIDATE_INT) === false || (int) $id < 1) {
+        responderCU(400, ["error" => "Se requiere un ID válido."]);
+    }
 
-function get_choferes($pdo, $id = null) {
+    return (int) $id;
+}
+
+function obtenerUnidadesCU($pdo, $id) {
     if ($id !== null) {
-        $stmt = $pdo->prepare("SELECT * FROM choferes WHERE id_chofer = :id");
-        $stmt->execute([':id' => $id]);
-        $chofer = $stmt->fetch();
+        $stmt = $pdo->prepare(
+            "SELECT * FROM unidades WHERE id_unidad = :id"
+        );
+        $stmt->execute([":id" => $id]);
+        $resultado = $stmt->fetch();
 
-        if ($chofer) {
-            responder(200, $chofer);
-        } else {
-            responder(404, ["mensaje" => "Chofer no encontrado"]);
+        if (!$resultado) {
+            responderCU(404, ["error" => "Unidad no encontrada."]);
         }
-    } else {
-        $stmt = $pdo->query("SELECT * FROM choferes");
-        $choferes = $stmt->fetchAll();
-        responder(200, $choferes);
-    }
-}
 
-
-function create_chofer($pdo, $data) {
-    if (empty($data['nombre']) || !isset($data['telefono']) || !isset($data['num_licencia'])) {
-        responder(400, ["error" => "Datos incompletos."]);
-        return;
+        responderCU(200, $resultado);
     }
 
-    $sql = "INSERT INTO choferes (nombre, telefono, num_licencia) VALUES (:nombre, :telefono, :num_licencia)";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':nombre' => $data['nombre'],
-        ':telefono' => $data['telefono'],
-        ':num_licencia' => $data['num_licencia']
-    ]);
-
-    responder(201, [
-        "mensaje" => "Chofer creado con éxito",
-        "id_chofer" => $pdo->lastInsertId()
-    ]);
+    $stmt = $pdo->query(
+        "SELECT * FROM unidades ORDER BY id_unidad"
+    );
+    responderCU(200, $stmt->fetchAll());
 }
 
+function guardarUnidadCU($pdo, $id, $datos) {
+    $placas = trim((string) ($datos["placas"] ?? ""));
+    $tipo = trim((string) ($datos["tipo"] ?? ""));
+    $capacidad = $datos["capacidad_kg"] ?? null;
 
-function update_chofer($pdo, $id, $data) {
+    if (
+        $placas === "" ||
+        $tipo === "" ||
+        !is_numeric($capacidad) ||
+        !is_finite((float) $capacidad) ||
+        (float) $capacidad <= 0
+    ) {
+        responderCU(400, [
+            "error" => "Las placas, el tipo y una capacidad mayor que cero son obligatorios."
+        ]);
+    }
+
+    $activa = isset($datos["activa"])
+        ? (int) (bool) $datos["activa"]
+        : 1;
+
     if ($id === null) {
-        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
-        return;
+        $stmt = $pdo->prepare(
+            "INSERT INTO unidades
+             (placas, tipo, capacidad_kg, activa)
+             VALUES (:placas, :tipo, :capacidad, :activa)"
+        );
+
+        $stmt->execute([
+            ":placas" => $placas,
+            ":tipo" => $tipo,
+            ":capacidad" => (float) $capacidad,
+            ":activa" => $activa
+        ]);
+
+        responderCU(201, [
+            "mensaje" => "Unidad creada correctamente.",
+            "id_unidad" => (int) $pdo->lastInsertId()
+        ]);
     }
 
-    if (empty($data['nombre']) || !isset($data['telefono']) || !isset($data['num_licencia'])) {
-        responder(400, ["error" => "Datos incompletos para actualizar."]);
-        return;
+    $id = validarIdCU($id);
+
+    $stmt = $pdo->prepare(
+        "SELECT id_unidad FROM unidades WHERE id_unidad = :id"
+    );
+    $stmt->execute([":id" => $id]);
+
+    if (!$stmt->fetch()) {
+        responderCU(404, ["error" => "Unidad no encontrada."]);
     }
 
-    $sql_id = "SELECT * FROM choferes WHERE id_chofer = :id";
-    $stmt_id = $pdo->prepare($sql_id);
-    $stmt_id->execute([':id' => $id]);
-    $chofer = $stmt_id->fetch();
+    $stmt = $pdo->prepare(
+        "UPDATE unidades
+         SET placas = :placas, tipo = :tipo,
+             capacidad_kg = :capacidad, activa = :activa
+         WHERE id_unidad = :id"
+    );
 
-    if (!$chofer) {
-        responder(404, ["error" => "Chofer no encontrado"]);
-        return;
-    }
-
-    $sql = "UPDATE choferes SET nombre = :nombre, telefono = :telefono, num_licencia = :num_licencia WHERE id_chofer = :id_chofer";
-    $stmt = $pdo->prepare($sql);
     $stmt->execute([
-        ':nombre' => $data['nombre'],
-        ':telefono' => $data['telefono'],
-        ':num_licencia' => $data['num_licencia'],
-        ':id_chofer' => $id
+        ":placas" => $placas,
+        ":tipo" => $tipo,
+        ":capacidad" => (float) $capacidad,
+        ":activa" => $activa,
+        ":id" => $id
     ]);
 
-    responder(200, ["mensaje" => "Chofer actualizado con éxito"]);
-
+    responderCU(200, ["mensaje" => "Unidad actualizada correctamente."]);
 }
 
-function delete_chofer($pdo, $id) {
-    if ($id === null) {
-        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
-        return;
+function eliminarUnidadCU($pdo, $id) {
+    $id = validarIdCU($id);
+
+    $stmt = $pdo->prepare(
+        "SELECT id_unidad FROM unidades WHERE id_unidad = :id"
+    );
+    $stmt->execute([":id" => $id]);
+
+    if (!$stmt->fetch()) {
+        responderCU(404, ["error" => "Unidad no encontrada."]);
     }
 
-    $sql_id = "SELECT * FROM choferes WHERE id_chofer = :id";
-    $stmt_id = $pdo->prepare($sql_id);
-    $stmt_id->execute([':id' => $id]);
-    $chofer = $stmt_id->fetch();
+    $stmt = $pdo->prepare(
+        "SELECT 1 FROM fletes WHERE id_unidad = :id LIMIT 1"
+    );
+    $stmt->execute([":id" => $id]);
 
-    if (!$chofer) {
-        responder(404, ["error" => "Chofer no encontrado"]);
-        return;
+    if ($stmt->fetch()) {
+        $stmt = $pdo->prepare(
+            "UPDATE unidades SET activa = 0 WHERE id_unidad = :id"
+        );
+        $stmt->execute([":id" => $id]);
+
+        responderCU(200, ["mensaje" => "Unidad desactivada porque tiene fletes asociados."]);
     }
 
-    $sql_flete = "SELECT 1 FROM fletes WHERE id_chofer = :id LIMIT 1";
-    $stmt_flete = $pdo->prepare($sql_flete);
-    $stmt_flete->execute([':id' => $id]);
-    $flete = $stmt_flete->fetch();
+    $stmt = $pdo->prepare(
+        "DELETE FROM unidades WHERE id_unidad = :id"
+    );
+    $stmt->execute([":id" => $id]);
 
-    if ($flete) {
-        $sql = "UPDATE choferes SET activo = 0 WHERE id_chofer = :id";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':id' => $id]);
-
-        responder(200, ["mensaje" => "Chofer desactivado con éxito, ya que tiene fletes asociados"]);
-        return;
-    }
-
-    $stmt = $pdo->prepare("DELETE FROM choferes WHERE id_chofer = :id");
-    $stmt->execute([':id' => $id]);
-
-    if ($stmt->rowCount() > 0) {
-        responder(200, ["mensaje" => "Chofer eliminado con éxito"]);
-    } else {
-        responder(404, ["error" => "Chofer no encontrado"]);
-    }
+    responderCU(200, ["mensaje" => "Unidad eliminada correctamente."]);
 }
 
-// API UNIDADES
-
-function get_unidades($pdo, $id = null) {
+function obtenerChoferesCU($pdo, $id) {
     if ($id !== null) {
-        $stmt = $pdo->prepare("SELECT * FROM unidades WHERE id_unidad = :id");
-        $stmt->execute([':id' => $id]);
-        $unidad = $stmt->fetch();
+        $stmt = $pdo->prepare(
+            "SELECT * FROM choferes WHERE id_chofer = :id"
+        );
+        $stmt->execute([":id" => $id]);
+        $resultado = $stmt->fetch();
 
-        if ($unidad) {
-            responder(200, $unidad);
-        } else {
-            responder(404, ["mensaje" => "Unidad no encontrada"]);
+        if (!$resultado) {
+            responderCU(404, ["error" => "Chofer no encontrado."]);
         }
-    } else {
-        $stmt = $pdo->query("SELECT * FROM unidades");
-        $unidades = $stmt->fetchAll();
-        responder(200, $unidades);
-    }
-}
 
-
-function create_unidad($pdo, $data) {
-    $placas = trim((string) ($data['placas'] ?? ''));
-    $tipo = trim((string) ($data['tipo'] ?? ''));
-
-    if (empty($placas) || empty($tipo) || !isset($data['capacidad_kg'])
-            || !is_numeric($data['capacidad_kg'])
-            || !is_finite((float) $data['capacidad_kg'])
-            || (float) $data['capacidad_kg'] <= 0
-        ) {
-        responder(400, ["error" => "Datos incompletos o invalidos."]);
-        return;
+        responderCU(200, $resultado);
     }
 
-    $sql = "INSERT INTO unidades (placas, tipo, capacidad_kg) VALUES (:placas, :tipo, :capacidad_kg)";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':placas' => $placas,
-        ':tipo' => $tipo,
-        ':capacidad_kg' => $data['capacidad_kg']
-    ]);
-
-    responder(201, [
-        "mensaje" => "Unidad creada con éxito",
-        "id_unidad" => $pdo->lastInsertId()
-    ]);
+    $stmt = $pdo->query(
+        "SELECT * FROM choferes ORDER BY id_chofer"
+    );
+    responderCU(200, $stmt->fetchAll());
 }
 
+function guardarChoferCU($pdo, $id, $datos) {
+    $nombre = trim((string) ($datos["nombre"] ?? ""));
+    $telefono = trim((string) ($datos["telefono"] ?? ""));
+    $licencia = trim((string) ($datos["num_licencia"] ?? ""));
 
-function update_unidad($pdo, $id, $data) {
-    $placas = trim((string) ($data['placas'] ?? ''));
-    $tipo = trim((string) ($data['tipo'] ?? ''));
+    if ($nombre === "" || $licencia === "") {
+        responderCU(400, [
+            "error" => "El nombre y el número de licencia son obligatorios."
+        ]);
+    }
 
     if ($id === null) {
-        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
-        return;
+        $stmt = $pdo->prepare(
+            "INSERT INTO choferes (nombre, telefono, num_licencia)
+             VALUES (:nombre, :telefono, :licencia)"
+        );
+
+        $stmt->execute([
+            ":nombre" => $nombre,
+            ":telefono" => $telefono,
+            ":licencia" => $licencia
+        ]);
+
+        responderCU(201, [
+            "mensaje" => "Chofer creado correctamente.",
+            "id_chofer" => (int) $pdo->lastInsertId()
+        ]);
     }
 
-    if (empty($placas) || empty($tipo) || !isset($data['capacidad_kg'])
-            || !is_numeric($data['capacidad_kg'])
-            || !is_finite((float) $data['capacidad_kg'])
-            || (float) $data['capacidad_kg'] <= 0
-        ) {
-        responder(400, ["error" => "Datos incompletos o erróneos para actualizar."]);
-        return;
+    $id = validarIdCU($id);
+
+    $stmt = $pdo->prepare(
+        "SELECT id_chofer FROM choferes WHERE id_chofer = :id"
+    );
+    $stmt->execute([":id" => $id]);
+
+    if (!$stmt->fetch()) {
+        responderCU(404, ["error" => "Chofer no encontrado."]);
     }
 
-    $sql_id = "SELECT * FROM unidades WHERE id_unidad = :id";
-    $stmt_id = $pdo->prepare($sql_id);
-    $stmt_id->execute([':id' => $id]);
-    $unidad = $stmt_id->fetch();
+    $activo = isset($datos["activo"])
+        ? (int) (bool) $datos["activo"]
+        : 1;
 
-    if (!$unidad) {
-        responder(404, ["error" => "Unidad no encontrada"]);
-        return;
-    }
+    $stmt = $pdo->prepare(
+        "UPDATE choferes
+         SET nombre = :nombre, telefono = :telefono,
+             num_licencia = :licencia, activo = :activo
+         WHERE id_chofer = :id"
+    );
 
-    $sql = "UPDATE unidades SET placas = :placas, tipo = :tipo, capacidad_kg = :capacidad_kg WHERE id_unidad = :id_unidad";
-    $stmt = $pdo->prepare($sql);
     $stmt->execute([
-        ':placas' => $placas,
-        ':tipo' => $tipo,
-        ':capacidad_kg' => $data['capacidad_kg'],
-        ':id_unidad' => $id
+        ":nombre" => $nombre,
+        ":telefono" => $telefono,
+        ":licencia" => $licencia,
+        ":activo" => $activo,
+        ":id" => $id
     ]);
 
-    responder(200, ["mensaje" => "Unidad actualizada con éxito"]);
-
+    responderCU(200, ["mensaje" => "Chofer actualizado correctamente."]);
 }
 
-function delete_unidad($pdo, $id) {
-    if ($id === null) {
-        responder(400, ["error" => "Se requiere el parámetro 'id' en la URL."]);
-        return;
+function eliminarChoferCU($pdo, $id) {
+    $id = validarIdCU($id);
+
+    $stmt = $pdo->prepare(
+        "SELECT id_chofer FROM choferes WHERE id_chofer = :id"
+    );
+    $stmt->execute([":id" => $id]);
+
+    if (!$stmt->fetch()) {
+        responderCU(404, ["error" => "Chofer no encontrado."]);
     }
 
-    $sql_id = "SELECT * FROM unidades WHERE id_unidad = :id";
-    $stmt_id = $pdo->prepare($sql_id);
-    $stmt_id->execute([':id' => $id]);
-    $unidad = $stmt_id->fetch();
+    $stmt = $pdo->prepare(
+        "SELECT 1 FROM fletes WHERE id_chofer = :id LIMIT 1"
+    );
+    $stmt->execute([":id" => $id]);
 
-    if (!$unidad) {
-        responder(404, ["error" => "Unidad no encontrada"]);
-        return;
+    if ($stmt->fetch()) {
+        $stmt = $pdo->prepare(
+            "UPDATE choferes SET activo = 0 WHERE id_chofer = :id"
+        );
+        $stmt->execute([":id" => $id]);
+
+        responderCU(200, ["mensaje" => "Chofer desactivado porque tiene fletes asociados."]);
     }
 
-    $sql_flete = "SELECT 1 FROM fletes WHERE id_unidad = :id LIMIT 1";
-    $stmt_flete = $pdo->prepare($sql_flete);
-    $stmt_flete->execute([':id' => $id]);
-    $flete = $stmt_flete->fetch();
+    $stmt = $pdo->prepare(
+        "DELETE FROM choferes WHERE id_chofer = :id"
+    );
+    $stmt->execute([":id" => $id]);
 
-    if ($flete) {
-        $sql = "UPDATE unidades SET activa = 0 WHERE id_unidad = :id";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':id' => $id]);
-
-        responder(200, ["mensaje" => "Unidad desactivada con éxito, ya que tiene fletes asociados"]);
-        return;
-    }
-
-    $stmt = $pdo->prepare("DELETE FROM unidades WHERE id_unidad = :id");
-    $stmt->execute([':id' => $id]);
-
-    if ($stmt->rowCount() > 0) {
-        responder(200, ["mensaje" => "Unidad eliminada con éxito"]);
-    } else {
-        responder(404, ["error" => "Unidad no encontrada"]);
-    }
+    responderCU(200, ["mensaje" => "Chofer eliminado correctamente."]);
 }
 
+$pdo = conectarCU();
+$metodo = $_SERVER["REQUEST_METHOD"];
+$recurso = $_GET["recurso"] ?? "";
+$id = $_GET["id"] ?? null;
 
-// ENRUTADOR Y CONTROLADOR PRINCIPAL
+try {
+    switch ($recurso) {
+        case "unidades":
+            switch ($metodo) {
+                case "GET":
+                    obtenerUnidadesCU($pdo, $id);
+                    break;
+                case "POST":
+                    guardarUnidadCU($pdo, null, leerEntradaCU());
+                    break;
+                case "PUT":
+                    guardarUnidadCU($pdo, $id, leerEntradaCU());
+                    break;
+                case "DELETE":
+                    eliminarUnidadCU($pdo, $id);
+                    break;
+                default:
+                    responderCU(405, ["error" => "Método no permitido."]);
+            }
+            break;
 
-$pdo = get_db_connection();
-$method = $_SERVER['REQUEST_METHOD'];
-$recurso = $_GET['recurso'] ?? null;
-$id = $_GET['id'] ?? null;
-$input = null;
+        case "choferes":
+            switch ($metodo) {
+                case "GET":
+                    obtenerChoferesCU($pdo, $id);
+                    break;
+                case "POST":
+                    guardarChoferCU($pdo, null, leerEntradaCU());
+                    break;
+                case "PUT":
+                    guardarChoferCU($pdo, $id, leerEntradaCU());
+                    break;
+                case "DELETE":
+                    eliminarChoferCU($pdo, $id);
+                    break;
+                default:
+                    responderCU(405, ["error" => "Método no permitido."]);
+            }
+            break;
 
-if ($method === 'POST' || $method === 'PUT') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($input)) {
-        responder(400, ["error" => "JSON inválido."]);
-        exit();
+        default:
+            responderCU(400, ["error" => "Recurso no válido."]);
     }
-}
-
-if ($recurso === null) {
-    responder(400, ["error" => "Se requiere el parámetro 'recurso'"]);
-    exit();
-}
-
-switch ($recurso) {
-    case 'choferes':
-        switch ($method) {
-            case 'GET':
-                get_choferes($pdo, $id);
-                break;
-            case 'POST':
-                create_chofer($pdo, $input);
-                break;
-            case 'PUT':
-                update_chofer($pdo, $id, $input);
-                break;
-            case 'DELETE':
-                delete_chofer($pdo, $id);
-                break;
-            default:
-                responder(405, ["error" => "Método no permitido"]);
-        }
-        break;
-
-    case 'unidades':
-        switch ($method) {
-            case 'GET':
-                get_unidades($pdo, $id);
-                break;
-            case 'POST':
-                create_unidad($pdo, $input);
-                break;
-            case 'PUT':
-                update_unidad($pdo, $id, $input);
-                break;
-            case 'DELETE':
-                delete_unidad($pdo, $id);
-                break;
-            default:
-                responder(405, ["error" => "Método no permitido"]);
-        }
-        break;
-
-    default:
-        responder(404, ["error" => "Recurso no encontrado"]);
+} catch (PDOException $e) {
+    responderCU(500, [
+        "error" => "Error al procesar la operación en la base de datos."
+    ]);
 }

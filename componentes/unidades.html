@@ -1,19 +1,19 @@
 
 <section class="vista-unidades" x-data="vistaUnidades">
-
-
-    
     <div class="header-vista">
-
         <input
-        type="search"
-        placeholder="Buscar por placas o tipo de unidad..."
-        x-model="busqueda"
+            type="search"
+            placeholder="Buscar por placas o tipo de unidad..."
+            x-model="busqueda"
         >
-        <button class="boton-header-nuevo" type="button" @click="abrirFormulario()">
+
+        <button
+            class="boton-header-nuevo"
+            type="button"
+            @click="abrirFormulario()"
+        >
             Nueva unidad
         </button>
-
     </div>
 
     <p x-show="cargando">Cargando unidades...</p>
@@ -42,6 +42,7 @@
                     <td x-text="unidad.tipo || 'Sin especificar'"></td>
                     <td x-text="unidad.capacidad_kg ?? 'Sin especificar'"></td>
                     <td x-text="Number(unidad.activa) === 1 ? 'Activa' : 'Inactiva'"></td>
+
                     <td>
                         <button
                             type="button"
@@ -75,7 +76,7 @@
         >
 
         <label for="unidad-tipo">Tipo de unidad</label>
-        <select id="unidad-tipo" x-model="formulario.tipo">
+        <select id="unidad-tipo" x-model="formulario.tipo" required>
             <option value="">Selecciona un tipo</option>
             <option value="Pickup">Pickup</option>
             <option value="Camioneta">Camioneta</option>
@@ -92,6 +93,7 @@
             min="0.01"
             step="0.01"
             x-model="formulario.capacidad_kg"
+            required
         >
 
         <label>
@@ -109,5 +111,4 @@
 
         <p x-show="errorFormulario" x-text="errorFormulario"></p>
     </form>
-
 </section>
