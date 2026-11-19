@@ -330,6 +330,152 @@ function vistaClientes() {
 }
 
 
+function vistaChoferes() {
+    return {
+        choferes: [],
+        busqueda: "",
+        cargando: false,
+        guardando: false,
+        error: "",
+        errorFormulario: "",
+        mensaje: "",
+
+        formularioAbierto: false,
+
+        formulario: {
+            id_chofer: null,
+            nombre: "",
+            telefono: "",
+            num_licencia: "",
+            activo: true
+        },
+
+        get choferesFiltrados() {
+            const texto = this.busqueda.trim().toLowerCase();
+
+            if (!texto) return this.choferes;
+
+            return this.choferes.filter(chofer =>
+                [
+                    chofer.nombre,
+                    chofer.telefono,
+                    chofer.num_licencia
+                ].some(valor =>
+                    String(valor ?? "").toLowerCase().includes(texto)
+                )
+            );
+        },
+
+        async init() {
+            await this.cargarChoferes();
+        },
+
+        async cargarChoferes() {
+            this.cargando = true;
+            this.error = "";
+
+            try {
+                const datos = await solicitarAPI("choferes");
+
+                this.choferes = Array.isArray(datos)
+                    ? datos
+                    : datos?.choferes ?? [];
+
+            } catch (error) {
+                this.error = mensajeError(error);
+                console.error("Error al cargar choferes:", error);
+
+            } finally {
+                this.cargando = false;
+            }
+        },
+
+        abrirFormulario(chofer = null) {
+            this.errorFormulario = "";
+            this.mensaje = "";
+
+            if (chofer) {
+                this.formulario = {
+                    id_chofer: chofer.id_chofer,
+                    nombre: chofer.nombre ?? "",
+                    telefono: chofer.telefono ?? "",
+                    num_licencia: chofer.num_licencia ?? "",
+                    activo: Number(chofer.activo ?? 1) === 1
+                };
+            } else {
+                this.formulario = {
+                    id_chofer: null,
+                    nombre: "",
+                    telefono: "",
+                    num_licencia: "",
+                    activo: true
+                };
+            }
+
+            this.formularioAbierto = true;
+        },
+
+        editarChofer(chofer) {
+            this.abrirFormulario(chofer);
+        },
+
+        cerrarFormulario() {
+            this.formularioAbierto = false;
+            this.errorFormulario = "";
+        },
+
+        async guardarChofer() {
+            this.errorFormulario = "";
+
+            const datos = {
+                nombre: this.formulario.nombre.trim(),
+                telefono: this.formulario.telefono.trim(),
+                num_licencia: this.formulario.num_licencia.trim(),
+                activo: Number(this.formulario.activo)
+            };
+
+            if (!datos.nombre || !datos.num_licencia) {
+                this.errorFormulario =
+                    "El nombre y el número de licencia son obligatorios.";
+                return;
+            }
+
+            const estabaEditando = Boolean(this.formulario.id_chofer);
+            this.guardando = true;
+
+            try {
+                if (estabaEditando) {
+                    await solicitarAPI("choferes", {
+                        method: "PUT",
+                        id: this.formulario.id_chofer,
+                        body: datos
+                    });
+                } else {
+                    await solicitarAPI("choferes", {
+                        method: "POST",
+                        body: datos
+                    });
+                }
+
+                this.cerrarFormulario();
+                this.mensaje = estabaEditando
+                    ? "Chofer actualizado correctamente."
+                    : "Chofer registrado correctamente.";
+
+                await this.cargarChoferes();
+
+            } catch (error) {
+                this.errorFormulario = mensajeError(error);
+                console.error("Error al guardar chofer:", error);
+
+            } finally {
+                this.guardando = false;
+            }
+        }
+    };
+}
+
+
 function vistaUnidades() {
     return {
         unidades: [],
@@ -854,6 +1000,7 @@ function vistaFletesPorPagar() {
 document.addEventListener("alpine:init", () => {
     Alpine.data("contexto", contexto);
     Alpine.data("vistaClientes", vistaClientes);
+    Alpine.data("vistaChoferes", vistaChoferes);
     Alpine.data("vistaUnidades", vistaUnidades);
     Alpine.data("vistaFletes", vistaFletes);
     Alpine.data("vistaFletesPorPagar", vistaFletesPorPagar);
