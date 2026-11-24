@@ -129,6 +129,50 @@ function contexto() {
         }
     };
 }
+
+function vistaDashboard() {
+    return {
+        fletes: [],
+        cargando: false,
+        error: "",
+
+        get pendientes() {
+            return this.fletes.filter(flete => Number(flete.pagado) === 0);
+        },
+
+        get totalPendiente() {
+            return this.pendientes.reduce(
+                (total, flete) => total + Number(flete.monto || 0),
+                0
+            );
+        },
+
+        init() {
+            this.cargarDatos();
+        },
+
+        async cargarDatos() {
+            this.cargando = true;
+            this.error = "";
+
+            try {
+                this.fletes = await solicitarAPI("fletes");
+            } catch (error) {
+                this.error = mensajeError(error);
+                console.error("Error al cargar el dashboard:", error);
+            } finally {
+                this.cargando = false;
+            }
+        },
+
+        formatearMonto(valor) {
+            return new Intl.NumberFormat("es-MX", {
+                style: "currency",
+                currency: "MXN"
+            }).format(Number(valor) || 0);
+        }
+    };
+}
     
 
 contexto.identificadorCarga = 0;
@@ -999,6 +1043,7 @@ function vistaFletesPorPagar() {
 
 document.addEventListener("alpine:init", () => {
     Alpine.data("contexto", contexto);
+    Alpine.data("vistaDashboard", vistaDashboard);
     Alpine.data("vistaClientes", vistaClientes);
     Alpine.data("vistaChoferes", vistaChoferes);
     Alpine.data("vistaUnidades", vistaUnidades);
