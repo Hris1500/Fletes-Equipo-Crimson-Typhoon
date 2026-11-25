@@ -12,7 +12,7 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 }
 
 $recurso = $_GET["recurso"] ?? "";
-
+require_once __DIR__ . "/setup.php";
 switch ($recurso) {
     case "clientes":
         require __DIR__ . "/api_Clientes.php";

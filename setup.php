@@ -71,7 +71,6 @@ try {
             ADD COLUMN activo INTEGER NOT NULL DEFAULT 1
         ");
 
-        echo "Se agregó la columna activo a clientes.<br>";
     }
 
     $total = (int) $db->querySingle(
@@ -119,9 +118,7 @@ try {
                  6000, 'pendiente', 0);
         ");
 
-        echo "Base de datos creada y datos de prueba insertados correctamente.";
     } else {
-        echo "La base de datos ya tenía choferes. No se insertaron datos de prueba.";
     }
 
     $db->close();
