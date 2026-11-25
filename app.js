@@ -53,7 +53,6 @@ async function solicitarAPI(recurso, opciones = {}) {
     return datos;
 }
 
-
 const VISTAS = {
     dashboard: {
         archivo: "./componentes/dashboard.html",
@@ -93,6 +92,18 @@ const VISTAS = {
     }
 };
 
+function formatearMontoMXN(valor) {
+    return new Intl.NumberFormat("es-MX", {
+        style: "currency",
+        currency: "MXN"
+    }).format(Number(valor) || 0);
+}
+
+function normalizarLista(datos, clave) {
+    if (Array.isArray(datos)) return datos;
+    if (clave && Array.isArray(datos?.[clave])) return datos[clave];
+    return datos?.fletes ?? datos?.[clave] ?? [];
+}
 
 function contexto() {
     return {
@@ -100,19 +111,7 @@ function contexto() {
         menu_abierto: false,
 
         titulo_vista() {
-            const titulos = {
-                dashboard: "Dashboard",
-                clientes: "Clientes",
-                unidades: "Unidades",
-                choferes: "Choferes",
-                fletes: "Fletes",
-                fletes_por_pagar: "Fletes por pagar",
-                reportes: "Reportes",
-                historial: "Historial",
-                creditos: "Créditos"
-            };
-
-            return titulos[this.vista] ?? "Gestión de Fletes";
+            return VISTAS[this.vista]?.titulo ?? "Gestión de Fletes";
         },
 
         inicializar() {
@@ -121,13 +120,38 @@ function contexto() {
 
         cambiar_vista(nombre) {
             this.vista = nombre;
-            this.menu_abierto = false;
         },
 
         alternar_menu() {
             this.menu_abierto = !this.menu_abierto;
         }
     };
+}
+
+contexto.identificadorCarga = 0;
+
+function escaparHTML(valor) {
+    return String(valor ?? "").replace(/[&<>"']/g, caracter => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[caracter]);
+}
+
+function mensajeError(error, mensajePredeterminado = "Ocurrió un error.") {
+    return error?.message ?? mensajePredeterminado;
+}
+
+function numeroONulo(valor) {
+    if (valor === "" || valor === null || valor === undefined) {
+        return null;
+    }
+
+    const numero = Number(valor);
+
+    return Number.isFinite(numero) ? numero : null;
 }
 
 function vistaDashboard() {
@@ -156,7 +180,8 @@ function vistaDashboard() {
             this.error = "";
 
             try {
-                this.fletes = await solicitarAPI("fletes");
+                const datos = await solicitarAPI("fletes");
+                this.fletes = normalizarLista(datos, "fletes");
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al cargar el dashboard:", error);
@@ -165,43 +190,9 @@ function vistaDashboard() {
             }
         },
 
-        formatearMonto(valor) {
-            return new Intl.NumberFormat("es-MX", {
-                style: "currency",
-                currency: "MXN"
-            }).format(Number(valor) || 0);
-        }
+        formatearMonto: formatearMontoMXN
     };
 }
-    
-
-contexto.identificadorCarga = 0;
-
-
-function escaparHTML(valor) {
-    return String(valor ?? "").replace(/[&<>"']/g, caracter => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    })[caracter]);
-}
-
-function mensajeError(error, mensajePredeterminado = "Ocurrió un error.") {
-    return error?.message ?? mensajePredeterminado;
-}
-
-function numeroONulo(valor) {
-    if (valor === "" || valor === null || valor === undefined) {
-        return null;
-    }
-
-    const numero = Number(valor);
-
-    return Number.isFinite(numero) ? numero : null;
-}
-
 
 function vistaClientes() {
     return {
@@ -250,15 +241,10 @@ function vistaClientes() {
 
             try {
                 const datos = await solicitarAPI("clientes");
-
-                this.clientes = Array.isArray(datos)
-                    ? datos
-                    : datos?.clientes ?? [];
-
+                this.clientes = normalizarLista(datos, "clientes");
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al cargar clientes:", error);
-
             } finally {
                 this.cargando = false;
             }
@@ -270,7 +256,6 @@ function vistaClientes() {
 
             if (cliente) {
                 this.editando = true;
-
                 this.formulario = {
                     id_cliente: cliente.id_cliente,
                     nombre: cliente.nombre ?? "",
@@ -281,7 +266,6 @@ function vistaClientes() {
                 };
             } else {
                 this.editando = false;
-
                 this.formulario = {
                     id_cliente: null,
                     nombre: "",
@@ -340,7 +324,6 @@ function vistaClientes() {
                     : "Cliente registrado correctamente.";
 
                 await this.cargarClientes();
-
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al guardar cliente:", error);
@@ -364,7 +347,6 @@ function vistaClientes() {
 
                 this.mensaje = "Cliente eliminado correctamente.";
                 await this.cargarClientes();
-
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al eliminar cliente:", error);
@@ -372,7 +354,6 @@ function vistaClientes() {
         }
     };
 }
-
 
 function vistaChoferes() {
     return {
@@ -420,15 +401,10 @@ function vistaChoferes() {
 
             try {
                 const datos = await solicitarAPI("choferes");
-
-                this.choferes = Array.isArray(datos)
-                    ? datos
-                    : datos?.choferes ?? [];
-
+                this.choferes = normalizarLista(datos, "choferes");
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al cargar choferes:", error);
-
             } finally {
                 this.cargando = false;
             }
@@ -507,18 +483,15 @@ function vistaChoferes() {
                     : "Chofer registrado correctamente.";
 
                 await this.cargarChoferes();
-
             } catch (error) {
                 this.errorFormulario = mensajeError(error);
                 console.error("Error al guardar chofer:", error);
-
             } finally {
                 this.guardando = false;
             }
         }
     };
 }
-
 
 function vistaUnidades() {
     return {
@@ -565,15 +538,10 @@ function vistaUnidades() {
 
             try {
                 const datos = await solicitarAPI("unidades");
-
-                this.unidades = Array.isArray(datos)
-                    ? datos
-                    : datos?.unidades ?? [];
-
+                this.unidades = normalizarLista(datos, "unidades");
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al cargar unidades:", error);
-
             } finally {
                 this.cargando = false;
             }
@@ -585,7 +553,6 @@ function vistaUnidades() {
 
             if (unidad) {
                 this.editando = true;
-
                 this.formulario = {
                     id_unidad: unidad.id_unidad,
                     placas: unidad.placas ?? "",
@@ -595,7 +562,6 @@ function vistaUnidades() {
                 };
             } else {
                 this.editando = false;
-
                 this.formulario = {
                     id_unidad: null,
                     placas: "",
@@ -622,8 +588,7 @@ function vistaUnidades() {
                 return;
             }
 
-            const capacidad =
-                numeroONulo(this.formulario.capacidad_kg);
+            const capacidad = numeroONulo(this.formulario.capacidad_kg);
 
             if (
                 this.formulario.capacidad_kg !== "" &&
@@ -663,7 +628,6 @@ function vistaUnidades() {
                     : "Unidad registrada correctamente.";
 
                 await this.cargarUnidades();
-
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al guardar unidad:", error);
@@ -687,7 +651,6 @@ function vistaUnidades() {
 
                 this.mensaje = "Unidad eliminada correctamente.";
                 await this.cargarUnidades();
-
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al eliminar unidad:", error);
@@ -695,7 +658,6 @@ function vistaUnidades() {
         }
     };
 }
-
 
 function vistaFletes() {
     return {
@@ -764,26 +726,13 @@ function vistaFletes() {
                         solicitarAPI("unidades")
                     ]);
 
-                this.fletes = Array.isArray(fletes)
-                    ? fletes
-                    : fletes?.fletes ?? [];
-
-                this.clientes = Array.isArray(clientes)
-                    ? clientes
-                    : clientes?.clientes ?? [];
-
-                this.choferes = Array.isArray(choferes)
-                    ? choferes
-                    : choferes?.choferes ?? [];
-
-                this.unidades = Array.isArray(unidades)
-                    ? unidades
-                    : unidades?.unidades ?? [];
-
+                this.fletes = normalizarLista(fletes, "fletes");
+                this.clientes = normalizarLista(clientes, "clientes");
+                this.choferes = normalizarLista(choferes, "choferes");
+                this.unidades = normalizarLista(unidades, "unidades");
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al cargar datos de fletes:", error);
-
             } finally {
                 this.cargando = false;
             }
@@ -906,25 +855,17 @@ function vistaFletes() {
                     : "Flete registrado correctamente.";
 
                 await this.cargarDatos();
-
             } catch (error) {
                 this.errorFormulario = mensajeError(error);
                 console.error("Error al guardar flete:", error);
-
             } finally {
                 this.guardando = false;
             }
         },
 
-        formatearMonto(valor) {
-            return new Intl.NumberFormat("es-MX", {
-                style: "currency",
-                currency: "MXN"
-            }).format(Number(valor) || 0);
-        }
+        formatearMonto: formatearMontoMXN
     };
 }
-
 
 function vistaFletesPorPagar() {
     return {
@@ -971,24 +912,15 @@ function vistaFletesPorPagar() {
             this.error = "";
 
             try {
-                const datos =
-                    await solicitarAPI("fletes_por_pagar");
-
-                const lista = Array.isArray(datos)
-                    ? datos
-                    : datos?.fletes ?? [];
+                const datos = await solicitarAPI("fletes_por_pagar");
+                const lista = normalizarLista(datos, "fletes");
 
                 this.fletes = lista.filter(
                     flete => Number(flete.pagado) === 0
                 );
-
             } catch (error) {
                 this.error = mensajeError(error);
-                console.error(
-                    "Error al cargar fletes por pagar:",
-                    error
-                );
-
+                console.error("Error al cargar fletes por pagar:", error);
             } finally {
                 this.cargando = false;
             }
@@ -1021,63 +953,64 @@ function vistaFletesPorPagar() {
                     `Pago del flete #${flete.id_flete} registrado correctamente.`;
 
                 await this.cargarFletes();
-
             } catch (error) {
                 this.error = mensajeError(error);
                 console.error("Error al registrar el pago:", error);
-
             } finally {
                 this.procesandoPago = null;
             }
         },
 
-        formatearMonto(valor) {
-            return new Intl.NumberFormat("es-MX", {
-                style: "currency",
-                currency: "MXN"
-            }).format(Number(valor) || 0);
-        }
+        formatearMonto: formatearMontoMXN
     };
 }
 
+function vistaHistorial() {
+    return {
+        fletes: [],
+        cargando: false,
+        error: "",
+        busqueda: "",
 
-document.addEventListener("alpine:init", () => {
-    Alpine.data("contexto", contexto);
-    Alpine.data("vistaDashboard", vistaDashboard);
-    Alpine.data("vistaClientes", vistaClientes);
-    Alpine.data("vistaChoferes", vistaChoferes);
-    Alpine.data("vistaUnidades", vistaUnidades);
-    Alpine.data("vistaFletes", vistaFletes);
-    Alpine.data("vistaFletesPorPagar", vistaFletesPorPagar);
-});
+        get fletesFiltrados() {
+            const texto = this.busqueda.trim().toLowerCase();
 
+            if (!texto) return this.fletes;
 
-document.addEventListener("DOMContentLoaded", () => {
-    const botonMenu = document.getElementById("menu-boton");
-    const menuSeleccion = document.getElementById("menu-seleccion");
+            return this.fletes.filter(flete =>
+                [
+                    flete.id_flete,
+                    flete.cliente,
+                    flete.chofer,
+                    flete.placas,
+                    flete.origen,
+                    flete.destino,
+                    flete.estatus
+                ].some(valor =>
+                    String(valor ?? "").toLowerCase().includes(texto)
+                )
+            );
+        },
 
-    if (botonMenu && menuSeleccion) {
-        botonMenu.addEventListener("click", () => {
-            menuSeleccion.classList.toggle("menu-visible");
-        });
+        async init() {
+            await this.cargarHistorial();
+        },
 
-        menuSeleccion.addEventListener("click", event => {
-            const boton = event.target.closest("[data-vista]");
+        async cargarHistorial() {
+            this.cargando = true;
+            this.error = "";
 
-            if (!boton) return;
-
-            const nombreVista = boton.dataset.vista;
-            const raiz = document.querySelector('[x-data="contexto"]');
-
-            if (raiz && window.Alpine) {
-                const componente = Alpine.$data(raiz);
-
-                if (componente?.cambiar_vista) {
-                    componente.cambiar_vista(nombreVista);
-                }
+            try {
+                const datos = await solicitarAPI("historial");
+                this.fletes = normalizarLista(datos, "historial");
+            } catch (error) {
+                this.error = mensajeError(error);
+                console.error("Error al cargar historial:", error);
+            } finally {
+                this.cargando = false;
             }
+        },
 
-            menuSeleccion.classList.remove("menu-visible");
-        });
-    }
-});
+        formatearMonto: formatearMontoMXN
+    };
+}

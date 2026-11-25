@@ -32,7 +32,7 @@
     </header>
 
     <div id="menu-seleccion" class="contenedor-seleccion menu-toggle"
-         :class="{ 'menu-abierto': menu_abierto }">
+         :class="{ 'menu-toggle': menu_abierto }">
 
         <nav>
             <ul>
@@ -111,7 +111,7 @@
         </nav>
     </div>
 
-    <main id="main" class="menu-toggle">
+    <main id="main" :class="{ 'menu-toggle': menu_abierto }">
 
         <div class="cuerpo-templates" id="principal">
 
