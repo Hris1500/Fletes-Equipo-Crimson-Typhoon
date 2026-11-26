@@ -1,5 +1,5 @@
 
-<section class="vista-choferes" x-data="vistaChoferes">
+<section class="vista-choferes" x-data="vistaChoferes()">
 
     <div class="header-vista">
 
@@ -19,6 +19,7 @@
 
     <p x-show="cargando">Cargando choferes...</p>
     <p x-show="error" x-text="error"></p>
+    <p x-show="mensaje" x-text="mensaje"></p>
 
     <table>
         <thead>
@@ -34,7 +35,7 @@
 
         <tbody>
             <template
-                x-for="chofer in choferesFiltrados"
+                x-for="chofer in filtrados"
                 :key="chofer.id_chofer"
             >
                 <tr>
@@ -46,7 +47,7 @@
                     <td>
                         <button
                             type="button"
-                            @click="editarChofer(chofer)"
+                            @click="abrirFormulario(chofer)"
                         >
                             Editar
                         </button>
@@ -54,7 +55,7 @@
                 </tr>
             </template>
 
-            <tr x-show="!cargando && choferesFiltrados.length === 0">
+            <tr x-show="!cargando && filtrados.length === 0">
                 <td colspan="6">No se encontraron choferes.</td>
             </tr>
         </tbody>
@@ -63,7 +64,7 @@
     <form
         x-show="formularioAbierto"
         x-cloak
-        @submit.prevent="guardarChofer()"
+        @submit.prevent="guardar()"
     >
         <h3 x-text="formulario.id_chofer ? 'Editar chofer' : 'Registrar chofer'"></h3>
 

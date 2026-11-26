@@ -1,5 +1,5 @@
 
-<section class="vista-fletes-por-pagar" x-data="vistaFletesPorPagar">
+<section class="vista-fletes-por-pagar" x-data="vistaFletesPorPagar()">
     <div class="header-vista">
         <input
             type="search"
@@ -9,7 +9,7 @@
 
         <button
             type="button"
-            @click="cargarFletes()"
+            @click="cargar()"
             :disabled="cargando"
         >
             Actualizar
@@ -22,16 +22,11 @@
 
     <section class="resumen-pagos">
         <h3>Saldo pendiente total</h3>
-        <p
-            x-text="new Intl.NumberFormat('es-MX', {
-                style: 'currency',
-                currency: 'MXN'
-            }).format(totalPendiente)"
-        ></p>
+        <p x-text="formatearMonto(totalPendiente)"></p>
 
         <p>
             Fletes pendientes:
-            <strong x-text="fletes.length"></strong>
+            <strong x-text="registros.length"></strong>
         </p>
     </section>
 
@@ -53,7 +48,7 @@
 
         <tbody>
             <template
-                x-for="flete in fletesFiltrados"
+                x-for="flete in filtrados"
                 :key="flete.id_flete"
             >
                 <tr>
@@ -65,11 +60,7 @@
                     <td x-text="flete.destino"></td>
                     <td x-text="flete.fecha_salida || 'Sin fecha'"></td>
                     <td x-text="formatearMonto(flete.monto)"></td>
-                    <td x-text="({
-                        pendiente: 'Pendiente',
-                        en_transito: 'En tránsito',
-                        finalizado: 'Finalizado'
-                    })[flete.estatus] || flete.estatus"></td>
+                    <td x-text="etiquetaEstatus(flete.estatus)"></td>
 
                     <td>
                         <button
@@ -87,7 +78,7 @@
                 </tr>
             </template>
 
-            <tr x-show="!cargando && fletesFiltrados.length === 0">
+            <tr x-show="!cargando && filtrados.length === 0">
                 <td colspan="10">No hay fletes pendientes de pago.</td>
             </tr>
         </tbody>

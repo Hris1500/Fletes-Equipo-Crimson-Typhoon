@@ -110,9 +110,12 @@ try {
                 ":direccion" => $datos["direccion"]
             ]);
 
+            $nuevoId = (int) $pdo->lastInsertId();
+            registrarCambio($pdo, "clientes", $nuevoId);
+
             responderCliente(201, [
                 "mensaje" => "Cliente creado correctamente.",
-                "id_cliente" => (int) $pdo->lastInsertId()
+                "id_cliente" => $nuevoId
             ]);
 
         case "PUT":
@@ -162,7 +165,9 @@ try {
                 $parametros[":activo"] = $activo;
             }
 
+            $antes = leerFilaHistorial($pdo, "clientes", $id);
             $stmt->execute($parametros);
+            registrarCambio($pdo, "clientes", $id, $antes);
 
             responderCliente(200, ["mensaje" => "Cliente actualizado correctamente."]);
 
@@ -171,6 +176,7 @@ try {
                 responderCliente(400, ["error" => "Se requiere el ID del cliente."]);
             }
 
+            $antes = leerFilaHistorial($pdo, "clientes", $id);
             $stmt = $pdo->prepare(
                 "DELETE FROM clientes WHERE id_cliente = :id"
             );
@@ -180,6 +186,7 @@ try {
                 responderCliente(404, ["error" => "Cliente no encontrado."]);
             }
 
+            registrarCambio($pdo, "clientes", $id, $antes);
             responderCliente(200, ["mensaje" => "Cliente eliminado correctamente."]);
 
         default:

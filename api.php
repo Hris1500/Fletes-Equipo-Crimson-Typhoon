@@ -13,6 +13,8 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
 
 $recurso = $_GET["recurso"] ?? "";
 require_once __DIR__ . "/setup.php";
+require_once __DIR__ . "/api_Historial.php";
+
 switch ($recurso) {
     case "clientes":
         require __DIR__ . "/api_Clientes.php";
@@ -26,6 +28,17 @@ switch ($recurso) {
     case "fletes":
     case "fletes_por_pagar":
         require __DIR__ . "/api_Fletes.php";
+        break;
+
+    case "historial":
+        if ($_SERVER["REQUEST_METHOD"] !== "GET") {
+            header("Allow: GET");
+            http_response_code(405);
+            echo json_encode(["error" => "El historial es de solo lectura."]);
+            exit;
+        }
+
+        echo json_encode(leerHistorial(), JSON_UNESCAPED_UNICODE);
         break;
 
     default:

@@ -1,21 +1,21 @@
-<section class="dashboard" x-data="vistaDashboard">
+<section class="dashboard" x-data="vistaDashboard()">
     <div class="dashboard-intro">   
         <div>
             <h2>Resumen de operaciones</h2>
             <p>Consulta el estado general de tus fletes.</p>
         </div>
-        <button type="button" @click="cargarDatos()" :disabled="cargando">
+        <button type="button" @click="cargar()" :disabled="cargando">
             <span x-text="cargando ? 'Actualizando…' : 'Actualizar'"></span>
         </button>
     </div>
 
     <p class="mensaje-error" x-show="error" x-text="error" role="alert"></p>
-    <p x-show="cargando && !fletes.length">Cargando resumen…</p>
+    <p x-show="cargando && !registros.length">Cargando resumen…</p>
 
     <div class="kpis-contenedor">
         <article class="tarjeta-kpi">
             <h3>Fletes registrados</h3>
-            <p x-text="fletes.length"></p>
+            <p x-text="registros.length"></p>
         </article>
         <article class="tarjeta-kpi">
             <h3>Pendientes de pago</h3>
@@ -29,10 +29,10 @@
 
     <div class="dashboard-listado">
         <h2>Fletes recientes</h2>
-        <p x-show="!cargando && !error && !fletes.length">
+        <p x-show="!cargando && !error && !registros.length">
             Todavía no hay fletes registrados.
         </p>
-        <div class="tabla-scroll" x-show="fletes.length">
+        <div class="tabla-scroll" x-show="registros.length">
             <table class="tabla-dashboard">
                 <thead>
                     <tr>
@@ -44,19 +44,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <template x-for="flete in fletes.slice(0, 5)">
+                    <template x-for="flete in registros.slice(0, 5)">
                         <tr>
                             <td x-text="flete.id_flete"></td>
                             <td x-text="flete.cliente"></td>
                             <td x-text="flete.origen + ' - ' + flete.destino"></td>
-                            <td>
-                                <template x-if="flete.pagado">
-                                    <span>Pagado</span>
-                                </template>
-                                <template x-if="!flete.pagado">
-                                    <span>Por pagar</span>
-                                </template>
-                            </td>
+                            <td x-text="etiquetaPago(flete.pagado)"></td>
                             <td x-text="formatearMonto(flete.monto)"></td>
                         </tr>
                     </template>
@@ -64,7 +57,7 @@
             </table>
         </div>
         <button type="button" class="dashboard-enlace"
-                @click="$dispatch('cambiar-vista', 'fletes')">
+                @click="cambiar_vista('fletes')">
             Ver todos los fletes
         </button>
     </div>

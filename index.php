@@ -16,8 +16,7 @@
 
 <body>
 
-<div class="app" id="app" x-data="contexto" x-init="inicializar()"
-     @cambiar-vista.window="cambiar_vista($event.detail)">
+<div class="app" id="app" x-data="contexto">
 
     <header>
         <div class="lado-izquierdo">

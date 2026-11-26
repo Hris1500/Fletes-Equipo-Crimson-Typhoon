@@ -95,9 +95,12 @@ function guardarUnidadCU($pdo, $id, $datos) {
             ":activa" => $activa
         ]);
 
+        $nuevoId = (int) $pdo->lastInsertId();
+        registrarCambio($pdo, "unidades", $nuevoId);
+
         responderCU(201, [
             "mensaje" => "Unidad creada correctamente.",
-            "id_unidad" => (int) $pdo->lastInsertId()
+            "id_unidad" => $nuevoId
         ]);
     }
 
@@ -112,6 +115,7 @@ function guardarUnidadCU($pdo, $id, $datos) {
         responderCU(404, ["error" => "Unidad no encontrada."]);
     }
 
+    $antes = leerFilaHistorial($pdo, "unidades", $id);
     $stmt = $pdo->prepare(
         "UPDATE unidades
          SET placas = :placas, tipo = :tipo,
@@ -126,6 +130,7 @@ function guardarUnidadCU($pdo, $id, $datos) {
         ":activa" => $activa,
         ":id" => $id
     ]);
+    registrarCambio($pdo, "unidades", $id, $antes);
 
     responderCU(200, ["mensaje" => "Unidad actualizada correctamente."]);
 }
@@ -148,18 +153,22 @@ function eliminarUnidadCU($pdo, $id) {
     $stmt->execute([":id" => $id]);
 
     if ($stmt->fetch()) {
+        $antes = leerFilaHistorial($pdo, "unidades", $id);
         $stmt = $pdo->prepare(
             "UPDATE unidades SET activa = 0 WHERE id_unidad = :id"
         );
         $stmt->execute([":id" => $id]);
+        registrarCambio($pdo, "unidades", $id, $antes);
 
         responderCU(200, ["mensaje" => "Unidad desactivada porque tiene fletes asociados."]);
     }
 
+    $antes = leerFilaHistorial($pdo, "unidades", $id);
     $stmt = $pdo->prepare(
         "DELETE FROM unidades WHERE id_unidad = :id"
     );
     $stmt->execute([":id" => $id]);
+    registrarCambio($pdo, "unidades", $id, $antes);
 
     responderCU(200, ["mensaje" => "Unidad eliminada correctamente."]);
 }
@@ -208,9 +217,12 @@ function guardarChoferCU($pdo, $id, $datos) {
             ":licencia" => $licencia
         ]);
 
+        $nuevoId = (int) $pdo->lastInsertId();
+        registrarCambio($pdo, "choferes", $nuevoId);
+
         responderCU(201, [
             "mensaje" => "Chofer creado correctamente.",
-            "id_chofer" => (int) $pdo->lastInsertId()
+            "id_chofer" => $nuevoId
         ]);
     }
 
@@ -229,6 +241,7 @@ function guardarChoferCU($pdo, $id, $datos) {
         ? (int) (bool) $datos["activo"]
         : 1;
 
+    $antes = leerFilaHistorial($pdo, "choferes", $id);
     $stmt = $pdo->prepare(
         "UPDATE choferes
          SET nombre = :nombre, telefono = :telefono,
@@ -243,6 +256,7 @@ function guardarChoferCU($pdo, $id, $datos) {
         ":activo" => $activo,
         ":id" => $id
     ]);
+    registrarCambio($pdo, "choferes", $id, $antes);
 
     responderCU(200, ["mensaje" => "Chofer actualizado correctamente."]);
 }
@@ -265,18 +279,22 @@ function eliminarChoferCU($pdo, $id) {
     $stmt->execute([":id" => $id]);
 
     if ($stmt->fetch()) {
+        $antes = leerFilaHistorial($pdo, "choferes", $id);
         $stmt = $pdo->prepare(
             "UPDATE choferes SET activo = 0 WHERE id_chofer = :id"
         );
         $stmt->execute([":id" => $id]);
+        registrarCambio($pdo, "choferes", $id, $antes);
 
         responderCU(200, ["mensaje" => "Chofer desactivado porque tiene fletes asociados."]);
     }
 
+    $antes = leerFilaHistorial($pdo, "choferes", $id);
     $stmt = $pdo->prepare(
         "DELETE FROM choferes WHERE id_chofer = :id"
     );
     $stmt->execute([":id" => $id]);
+    registrarCambio($pdo, "choferes", $id, $antes);
 
     responderCU(200, ["mensaje" => "Chofer eliminado correctamente."]);
 }

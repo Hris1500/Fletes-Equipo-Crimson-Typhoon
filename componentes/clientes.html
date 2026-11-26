@@ -1,5 +1,5 @@
 
-<section class="vista-clientes" x-data="vistaClientes">
+<section class="vista-clientes" x-data="vistaClientes()">
     <div class="header-vista">
         <input
             type="search"
@@ -18,6 +18,7 @@
 
     <p x-show="cargando">Cargando clientes...</p>
     <p x-show="error" x-text="error"></p>
+    <p x-show="mensaje" x-text="mensaje"></p>
 
     <table>
         <thead>
@@ -34,7 +35,7 @@
 
         <tbody>
             <template
-                x-for="cliente in clientesFiltrados"
+                x-for="cliente in filtrados"
                 :key="cliente.id_cliente"
             >
                 <tr>
@@ -48,7 +49,7 @@
                     <td>
                         <button
                             type="button"
-                            @click="editarCliente(cliente)"
+                            @click="abrirFormulario(cliente)"
                         >
                             Editar
                         </button>
@@ -56,7 +57,7 @@
                 </tr>
             </template>
 
-            <tr x-show="!cargando && clientesFiltrados.length === 0">
+            <tr x-show="!cargando && filtrados.length === 0">
                 <td colspan="7">No se encontraron clientes.</td>
             </tr>
         </tbody>
@@ -65,7 +66,7 @@
     <form
         x-show="formularioAbierto"
         x-cloak
-        @submit.prevent="guardarCliente()"
+        @submit.prevent="guardar()"
     >
         <h3 x-text="formulario.id_cliente ? 'Editar cliente' : 'Registrar cliente'"></h3>
 

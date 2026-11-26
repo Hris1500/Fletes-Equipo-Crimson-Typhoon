@@ -345,3 +345,7 @@ footer {
         font-size: 1rem;
     }
 }
+
+[x-cloak] {
+    display: none !important;
+}

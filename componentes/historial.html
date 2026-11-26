@@ -1,0 +1,56 @@
+<section class="vista-historial" x-data="vistaHistorial()">
+    <div class="header-vista">
+        <input
+            type="search"
+            placeholder="Buscar por registro, fecha o detalle..."
+            x-model="busqueda"
+        >
+
+        <select x-model="tipo" aria-label="Tipo de cambio">
+            <option value="">Todos los cambios</option>
+            <option value="estado">Cambios de estado</option>
+            <option value="creado">Creados</option>
+            <option value="modificado">Otras modificaciones</option>
+            <option value="eliminado">Eliminados</option>
+        </select>
+
+        <button type="button" @click="cargar()" :disabled="cargando">
+            Actualizar
+        </button>
+    </div>
+
+    <p x-show="cargando">Cargando historial...</p>
+    <p class="mensaje-error" x-show="error" x-text="error" role="alert"></p>
+
+    <div class="tabla-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                    <th>Registro</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <template x-for="cambio in filtrados">
+                    <tr>
+                        <td x-text="cambio.fecha"></td>
+                        <td x-text="cambio.accion"></td>
+                        <td x-text="cambio.registro"></td>
+                        <td>
+                            <template x-for="linea in cambio.detalle">
+                                <div x-text="linea"></div>
+                            </template>
+                        </td>
+                    </tr>
+                </template>
+
+                <tr x-show="!cargando && !error && filtrados.length === 0">
+                    <td colspan="4">No hay cambios que mostrar.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>

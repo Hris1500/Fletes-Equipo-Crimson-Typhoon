@@ -1,5 +1,5 @@
 
-<section class="vista-fletes" x-data="vistaFletes">
+<section class="vista-fletes" x-data="vistaFletes()">
     <div class="header-vista">
         <input
             type="search"
@@ -18,6 +18,7 @@
 
     <p x-show="cargando">Cargando fletes...</p>
     <p x-show="error" x-text="error"></p>
+    <p x-show="mensaje" x-text="mensaje"></p>
 
     <table>
         <thead>
@@ -39,7 +40,7 @@
 
         <tbody>
             <template
-                x-for="flete in fletesFiltrados"
+                x-for="flete in filtrados"
                 :key="flete.id_flete"
             >
                 <tr>
@@ -51,18 +52,14 @@
                     <td x-text="flete.destino"></td>
                     <td x-text="flete.fecha_salida || 'Sin fecha'"></td>
                     <td x-text="flete.fecha_entrega || 'Sin fecha'"></td>
-                    <td x-text="new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(flete.monto)"></td>
-                    <td x-text="({
-                        pendiente: 'Pendiente',
-                        en_transito: 'En tránsito',
-                        finalizado: 'Finalizado'
-                    })[flete.estatus] || flete.estatus"></td>
-                    <td x-text="Number(flete.pagado) === 1 ? 'Pagado' : 'Por pagar'"></td>
+                    <td x-text="formatearMonto(flete.monto)"></td>
+                    <td x-text="etiquetaEstatus(flete.estatus)"></td>
+                    <td x-text="etiquetaPago(flete.pagado)"></td>
 
                     <td>
                         <button
                             type="button"
-                            @click="editarFlete(flete)"
+                            @click="abrirFormulario(flete)"
                         >
                             Editar
                         </button>
@@ -70,7 +67,7 @@
                 </tr>
             </template>
 
-            <tr x-show="!cargando && fletesFiltrados.length === 0">
+            <tr x-show="!cargando && filtrados.length === 0">
                 <td colspan="12">No se encontraron fletes.</td>
             </tr>
         </tbody>
@@ -79,7 +76,7 @@
     <form
         x-show="formularioAbierto"
         x-cloak
-        @submit.prevent="guardarFlete()"
+        @submit.prevent="guardar()"
     >
         <h3 x-text="formulario.id_flete ? 'Editar flete' : 'Registrar flete'"></h3>
 

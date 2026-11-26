@@ -250,10 +250,12 @@ function guardarFlete($pdo, $id, $datos) {
         ");
 
         $stmt->execute($flete);
+        $nuevoId = (int) $pdo->lastInsertId();
+        registrarCambio($pdo, "fletes", $nuevoId);
 
         responderFletes(201, [
             "mensaje" => "Flete registrado correctamente.",
-            "id_flete" => (int) $pdo->lastInsertId()
+            "id_flete" => $nuevoId
         ]);
     }
 
@@ -285,7 +287,9 @@ function guardarFlete($pdo, $id, $datos) {
     ");
 
     $flete["id"] = $id;
+    $antes = leerFilaHistorial($pdo, "fletes", $id);
     $stmt->execute($flete);
+    registrarCambio($pdo, "fletes", $id, $antes);
 
     responderFletes(200, ["mensaje" => "Flete actualizado correctamente."]);
 }
@@ -309,10 +313,12 @@ function marcarFletePagado($pdo, $id) {
         ]);
     }
 
+    $antes = leerFilaHistorial($pdo, "fletes", $id);
     $stmt = $pdo->prepare(
         "UPDATE fletes SET pagado = 1 WHERE id_flete = :id"
     );
     $stmt->execute([":id" => $id]);
+    registrarCambio($pdo, "fletes", $id, $antes);
 
     responderFletes(200, [
         "mensaje" => "Pago registrado correctamente.",
