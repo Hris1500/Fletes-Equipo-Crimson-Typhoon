@@ -7,7 +7,6 @@
 
     <title>Gestión de Fletes</title>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <link rel="stylesheet" href="style.css">
 
     <script defer src="./app.js"></script>
@@ -16,99 +15,122 @@
 
 <body>
 
-<div class="app" id="app" x-data="contexto">
+<div class="app" id="app" x-data="contexto" @keydown.escape.window="menu_abierto = false">
 
     <header>
         <div class="lado-izquierdo">
-            <button id="menu-boton" type="button" @click="alternar_menu()">
-                <img src="./imagenes/tres_rayas.svg" alt="Abrir menú">
+            <button id="menu-boton" type="button" @click="alternar_menu()"
+                    aria-controls="menu-seleccion" aria-label="Menú"
+                    :aria-expanded="menu_abierto.toString()">
+                <img src="./imagenes/tres_rayas.svg" alt="">
             </button>
 
-            <h1>Fletes</h1>
+            <span class="marca">Fletes</span>
         </div>
 
         <h1 class="titulo-vista" x-text="titulo_vista()"></h1>
     </header>
 
-    <div id="menu-seleccion" class="contenedor-seleccion menu-toggle"
+    <div id="menu-seleccion" class="contenedor-seleccion"
          :class="{ 'menu-toggle': menu_abierto }">
 
         <nav>
             <ul>
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Dashboard"
+                            :class="{ selected: vista === 'dashboard' }"
+                            :aria-current="vista === 'dashboard' ? 'page' : false"
                             @click="cambiar_vista('dashboard')">
                         <img src="./imagenes/home.svg" alt="">
-                        Dashboard
+                        <span>Dashboard</span>
                     </button>
                 </li>
 
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Choferes"
+                            :class="{ selected: vista === 'choferes' }"
+                            :aria-current="vista === 'choferes' ? 'page' : false"
                             @click="cambiar_vista('choferes')">
                         <img src="./imagenes/Choferes.svg" alt="">
-                        Choferes
+                        <span>Choferes</span>
                     </button>
                 </li>
 
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Clientes"
+                            :class="{ selected: vista === 'clientes' }"
+                            :aria-current="vista === 'clientes' ? 'page' : false"
                             @click="cambiar_vista('clientes')">
                         <img src="./imagenes/Clientes.svg" alt="">
-                        Clientes
+                        <span>Clientes</span>
                     </button>
                 </li>
 
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Unidades"
+                            :class="{ selected: vista === 'unidades' }"
+                            :aria-current="vista === 'unidades' ? 'page' : false"
                             @click="cambiar_vista('unidades')">
                         <img src="./imagenes/unidades.svg" alt="">
-                        Unidades
+                        <span>Unidades</span>
                     </button>
                 </li>
 
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Fletes"
+                            :class="{ selected: vista === 'fletes' }"
+                            :aria-current="vista === 'fletes' ? 'page' : false"
                             @click="cambiar_vista('fletes')">
                         <img src="./imagenes/fletes.svg" alt="">
-                        Fletes
+                        <span>Fletes</span>
                     </button>
                 </li>
 
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Fletes por pagar"
+                            :class="{ selected: vista === 'fletes_por_pagar' }"
+                            :aria-current="vista === 'fletes_por_pagar' ? 'page' : false"
                             @click="cambiar_vista('fletes_por_pagar')">
                         <img src="./imagenes/flete-pendiente.svg" alt="">
-                        Fletes por pagar
+                        <span>Fletes por pagar</span>
                     </button>
                 </li>
 
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Reportes"
+                            :class="{ selected: vista === 'reportes' }"
+                            :aria-current="vista === 'reportes' ? 'page' : false"
                             @click="cambiar_vista('reportes')">
                         <img src="./imagenes/reportes.svg" alt="">
-                        Reportes
+                        <span>Reportes</span>
                     </button>
                 </li>
 
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Historial"
+                            :class="{ selected: vista === 'historial' }"
+                            :aria-current="vista === 'historial' ? 'page' : false"
                             @click="cambiar_vista('historial')">
                         <img src="./imagenes/historial.svg" alt="">
-                        Historial
+                        <span>Historial</span>
                     </button>
                 </li>
 
                 <li>
-                    <button type="button" class="boton-seleccion"
+                    <button type="button" class="boton-seleccion" title="Créditos"
+                            :class="{ selected: vista === 'creditos' }"
+                            :aria-current="vista === 'creditos' ? 'page' : false"
                             @click="cambiar_vista('creditos')">
                         <img src="./imagenes/creditos.svg" alt="">
-                        Créditos
+                        <span>Créditos</span>
                     </button>
                 </li>
             </ul>
         </nav>
     </div>
+
+    <div class="fondo-menu" :class="{ visible: menu_abierto }"
+         @click="menu_abierto = false"></div>
 
     <main id="main" :class="{ 'menu-toggle': menu_abierto }">
 
@@ -167,8 +189,6 @@
                     <?php include "./componentes/creditos.html"; ?>
                 </div>
             </template>
-
-            <hr>
 
             <footer>
                 Todos los derechos reservados por el equipo Crimson Typhoon

@@ -10,20 +10,20 @@
     </div>
 
     <p class="mensaje-error" x-show="error" x-text="error" role="alert"></p>
-    <p x-show="cargando && !registros.length">Cargando resumen…</p>
+    <p class="mensaje-carga" x-show="cargando && !registros.length">Cargando resumen…</p>
 
-    <div class="kpis-contenedor">
-        <article class="tarjeta-kpi">
+    <div class="estadisticas">
+        <article class="estadistica">
             <h3>Fletes registrados</h3>
             <p x-text="registros.length"></p>
         </article>
-        <article class="tarjeta-kpi">
+        <article class="estadistica">
             <h3>Pendientes de pago</h3>
             <p x-text="pendientes.length"></p>
         </article>
-        <article class="tarjeta-kpi">
+        <article class="estadistica">
             <h3>Total por cobrar</h3>
-            <p class="kpi-monto" x-text="formatearMonto(totalPendiente)"></p>
+            <p x-text="formatearMonto(totalPendiente)"></p>
         </article>
     </div>
 
@@ -33,14 +33,14 @@
             Todavía no hay fletes registrados.
         </p>
         <div class="tabla-scroll" x-show="registros.length">
-            <table class="tabla-dashboard">
+            <table class="tabla-recientes">
                 <thead>
                     <tr>
                         <th>Flete</th>
                         <th>Cliente</th>
                         <th>Ruta</th>
-                        <th>Estatus</th>
-                        <th>Monto</th>
+                        <th>Pago</th>
+                        <th class="cifra">Monto</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -49,8 +49,8 @@
                             <td x-text="flete.id_flete"></td>
                             <td x-text="flete.cliente"></td>
                             <td x-text="flete.origen + ' - ' + flete.destino"></td>
-                            <td x-text="etiquetaPago(flete.pagado)"></td>
-                            <td x-text="formatearMonto(flete.monto)"></td>
+                            <td><span class="estatus" :class="Number(flete.pagado) === 1 ? 'pagado' : 'por-pagar'" x-text="etiquetaPago(flete.pagado)"></span></td>
+                            <td class="sin-salto cifra" x-text="formatearMonto(flete.monto)"></td>
                         </tr>
                     </template>
                 </tbody>

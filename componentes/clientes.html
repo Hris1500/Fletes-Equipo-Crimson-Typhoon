@@ -4,11 +4,12 @@
         <input
             type="search"
             placeholder="Buscar cliente por nombre, teléfono o correo..."
+            aria-label="Buscar cliente por nombre, teléfono o correo..."
             x-model="busqueda"
         >
 
         <button
-            class="boton-header-nuevo"
+            class="boton-primario"
             type="button"
             @click="abrirFormulario()"
         >
@@ -16,11 +17,12 @@
         </button>
     </div>
 
-    <p x-show="cargando">Cargando clientes...</p>
-    <p x-show="error" x-text="error"></p>
-    <p x-show="mensaje" x-text="mensaje"></p>
+    <p class="mensaje-carga" x-show="cargando">Cargando clientes...</p>
+    <p class="mensaje-error" x-show="error" x-text="error" role="alert"></p>
+    <p class="mensaje-exito" x-show="mensaje" x-text="mensaje" role="status"></p>
 
-    <table>
+    <div class="tabla-scroll">
+    <table class="tabla-acciones">
         <thead>
             <tr>
                 <th>ID</th>
@@ -44,11 +46,12 @@
                     <td x-text="cliente.telefono || 'Sin teléfono'"></td>
                     <td x-text="cliente.correo || 'Sin correo'"></td>
                     <td x-text="cliente.direccion || 'Sin dirección'"></td>
-                    <td x-text="Number(cliente.activo) === 1 ? 'Activo' : 'Inactivo'"></td>
+                    <td><span class="estatus" :class="Number(cliente.activo) === 1 ? 'activo' : 'inactivo'" x-text="Number(cliente.activo) === 1 ? 'Activo' : 'Inactivo'"></span></td>
 
                     <td>
                         <button
                             type="button"
+                            class="boton-tabla"
                             @click="abrirFormulario(cliente)"
                         >
                             Editar
@@ -62,55 +65,67 @@
             </tr>
         </tbody>
     </table>
+    </div>
 
     <form
+        class="formulario"
         x-show="formularioAbierto"
         x-cloak
         @submit.prevent="guardar()"
     >
         <h3 x-text="formulario.id_cliente ? 'Editar cliente' : 'Registrar cliente'"></h3>
 
-        <label for="cliente-nombre">Nombre</label>
-        <input
-            id="cliente-nombre"
-            type="text"
-            x-model="formulario.nombre"
-            required
-        >
+        <div class="campo">
+            <label for="cliente-nombre">Nombre</label>
+            <input
+                id="cliente-nombre"
+                type="text"
+                x-model="formulario.nombre"
+                required
+            >
+        </div>
 
-        <label for="cliente-telefono">Teléfono</label>
-        <input
-            id="cliente-telefono"
-            type="tel"
-            x-model="formulario.telefono"
-        >
+        <div class="campo">
+            <label for="cliente-telefono">Teléfono</label>
+            <input
+                id="cliente-telefono"
+                type="tel"
+                x-model="formulario.telefono"
+            >
+        </div>
 
-        <label for="cliente-correo">Correo electrónico</label>
-        <input
-            id="cliente-correo"
-            type="email"
-            x-model="formulario.correo"
-        >
+        <div class="campo">
+            <label for="cliente-correo">Correo electrónico</label>
+            <input
+                id="cliente-correo"
+                type="email"
+                x-model="formulario.correo"
+            >
+        </div>
 
-        <label for="cliente-direccion">Dirección</label>
-        <textarea
-            id="cliente-direccion"
-            x-model="formulario.direccion"
-        ></textarea>
+        <div class="campo campo-ancho">
+            <label for="cliente-direccion">Dirección</label>
+            <textarea
+                id="cliente-direccion"
+                x-model="formulario.direccion"
+            ></textarea>
+        </div>
 
-        <label>
+        <label class="campo-check">
             <input type="checkbox" x-model="formulario.activo">
             Cliente activo
         </label>
 
-        <button type="submit" :disabled="guardando">
-            <span x-text="guardando ? 'Guardando...' : 'Guardar'"></span>
-        </button>
+        <div class="form-acciones">
+            <button type="button" @click="cerrarFormulario()">
+                Cancelar
+            </button>
 
-        <button type="button" @click="cerrarFormulario()">
-            Cancelar
-        </button>
+            <button type="submit" class="boton-primario" :disabled="guardando">
+                <span x-text="guardando ? 'Guardando...' : 'Guardar'"></span>
+            </button>
+        </div>
 
-        <p x-show="errorFormulario" x-text="errorFormulario"></p>
+        <p class="mensaje-error" x-show="errorFormulario" x-text="errorFormulario" role="alert"></p>
     </form>
 </section>

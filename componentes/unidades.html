@@ -4,11 +4,12 @@
         <input
             type="search"
             placeholder="Buscar por placas o tipo de unidad..."
+            aria-label="Buscar por placas o tipo de unidad..."
             x-model="busqueda"
         >
 
         <button
-            class="boton-header-nuevo"
+            class="boton-primario"
             type="button"
             @click="abrirFormulario()"
         >
@@ -16,11 +17,12 @@
         </button>
     </div>
 
-    <p x-show="cargando">Cargando unidades...</p>
-    <p x-show="error" x-text="error"></p>
-    <p x-show="mensaje" x-text="mensaje"></p>
+    <p class="mensaje-carga" x-show="cargando">Cargando unidades...</p>
+    <p class="mensaje-error" x-show="error" x-text="error" role="alert"></p>
+    <p class="mensaje-exito" x-show="mensaje" x-text="mensaje" role="status"></p>
 
-    <table>
+    <div class="tabla-scroll">
+    <table class="tabla-acciones">
         <thead>
             <tr>
                 <th>ID</th>
@@ -42,11 +44,12 @@
                     <td x-text="unidad.placas"></td>
                     <td x-text="unidad.tipo || 'Sin especificar'"></td>
                     <td x-text="unidad.capacidad_kg ?? 'Sin especificar'"></td>
-                    <td x-text="Number(unidad.activa) === 1 ? 'Activa' : 'Inactiva'"></td>
+                    <td><span class="estatus" :class="Number(unidad.activa) === 1 ? 'activo' : 'inactivo'" x-text="Number(unidad.activa) === 1 ? 'Activa' : 'Inactiva'"></span></td>
 
                     <td>
                         <button
                             type="button"
+                            class="boton-tabla"
                             @click="abrirFormulario(unidad)"
                         >
                             Editar
@@ -60,56 +63,66 @@
             </tr>
         </tbody>
     </table>
+    </div>
 
     <form
+        class="formulario"
         x-show="formularioAbierto"
         x-cloak
         @submit.prevent="guardar()"
     >
         <h3 x-text="formulario.id_unidad ? 'Editar unidad' : 'Registrar unidad'"></h3>
 
-        <label for="unidad-placas">Placas</label>
-        <input
-            id="unidad-placas"
-            type="text"
-            x-model="formulario.placas"
-            required
-        >
+        <div class="campo">
+            <label for="unidad-placas">Placas</label>
+            <input
+                id="unidad-placas"
+                type="text"
+                x-model="formulario.placas"
+                required
+            >
+        </div>
 
-        <label for="unidad-tipo">Tipo de unidad</label>
-        <select id="unidad-tipo" x-model="formulario.tipo" required>
-            <option value="">Selecciona un tipo</option>
-            <option value="Pickup">Pickup</option>
-            <option value="Camioneta">Camioneta</option>
-            <option value="Rabón">Rabón</option>
-            <option value="Torton">Torton</option>
-            <option value="Tráiler">Tráiler</option>
-            <option value="Otro">Otro</option>
-        </select>
+        <div class="campo">
+            <label for="unidad-tipo">Tipo de unidad</label>
+            <select id="unidad-tipo" x-model="formulario.tipo" required>
+                <option value="">Selecciona un tipo</option>
+                <option value="Pickup">Pickup</option>
+                <option value="Camioneta">Camioneta</option>
+                <option value="Rabón">Rabón</option>
+                <option value="Torton">Torton</option>
+                <option value="Tráiler">Tráiler</option>
+                <option value="Otro">Otro</option>
+            </select>
+        </div>
 
-        <label for="unidad-capacidad">Capacidad en kilogramos</label>
-        <input
-            id="unidad-capacidad"
-            type="number"
-            min="0.01"
-            step="0.01"
-            x-model="formulario.capacidad_kg"
-            required
-        >
+        <div class="campo">
+            <label for="unidad-capacidad">Capacidad en kilogramos</label>
+            <input
+                id="unidad-capacidad"
+                type="number"
+                min="0.01"
+                step="0.01"
+                x-model="formulario.capacidad_kg"
+                required
+            >
+        </div>
 
-        <label>
+        <label class="campo-check">
             <input type="checkbox" x-model="formulario.activa">
             Unidad activa
         </label>
 
-        <button type="submit" :disabled="guardando">
-            <span x-text="guardando ? 'Guardando...' : 'Guardar'"></span>
-        </button>
+        <div class="form-acciones">
+            <button type="button" @click="cerrarFormulario()">
+                Cancelar
+            </button>
 
-        <button type="button" @click="cerrarFormulario()">
-            Cancelar
-        </button>
+            <button type="submit" class="boton-primario" :disabled="guardando">
+                <span x-text="guardando ? 'Guardando...' : 'Guardar'"></span>
+            </button>
+        </div>
 
-        <p x-show="errorFormulario" x-text="errorFormulario"></p>
+        <p class="mensaje-error" x-show="errorFormulario" x-text="errorFormulario" role="alert"></p>
     </form>
 </section>

@@ -3,6 +3,7 @@
         <input
             type="search"
             placeholder="Buscar por registro, fecha o detalle..."
+            aria-label="Buscar en el historial"
             x-model="busqueda"
         >
 
@@ -19,7 +20,7 @@
         </button>
     </div>
 
-    <p x-show="cargando">Cargando historial...</p>
+    <p class="mensaje-carga" x-show="cargando">Cargando historial...</p>
     <p class="mensaje-error" x-show="error" x-text="error" role="alert"></p>
 
     <div class="tabla-scroll">
@@ -36,10 +37,10 @@
             <tbody>
                 <template x-for="cambio in filtrados">
                     <tr>
-                        <td x-text="cambio.fecha"></td>
-                        <td x-text="cambio.accion"></td>
+                        <td class="sin-salto" x-text="cambio.fecha"></td>
+                        <td><span class="estatus" :class="cambio.tipo" x-text="cambio.accion"></span></td>
                         <td x-text="cambio.registro"></td>
-                        <td>
+                        <td class="detalle-cambio">
                             <template x-for="linea in cambio.detalle">
                                 <div x-text="linea"></div>
                             </template>

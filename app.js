@@ -148,6 +148,13 @@ function contexto() {
                 this.errorFormulario = "";
                 this.mensaje = "";
                 this.formularioAbierto = true;
+
+                const form = this.$root.querySelector("form");
+
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    form.scrollIntoView({ block: "start" });
+                    form.querySelector("input, select").focus({ preventScroll: true });
+                }));
             },
 
             cerrarFormulario() {
@@ -271,6 +278,11 @@ function contexto() {
 
         cambiar_vista(nombre) {
             this.vista = nombre;
+            window.scrollTo({ top: 0, behavior: "instant" });
+
+            if (window.matchMedia("(max-width: 640px)").matches) {
+                this.menu_abierto = false;
+            }
         },
 
         alternar_menu() {

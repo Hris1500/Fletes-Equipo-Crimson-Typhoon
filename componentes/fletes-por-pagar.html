@@ -4,6 +4,7 @@
         <input
             type="search"
             placeholder="Buscar por cliente, chofer, placas u origen..."
+            aria-label="Buscar por cliente, chofer, placas u origen..."
             x-model="busqueda"
         >
 
@@ -16,21 +17,23 @@
         </button>
     </div>
 
-    <p x-show="cargando">Cargando fletes por pagar...</p>
-    <p x-show="error" x-text="error"></p>
-    <p x-show="mensaje" x-text="mensaje"></p>
+    <p class="mensaje-carga" x-show="cargando">Cargando fletes por pagar...</p>
+    <p class="mensaje-error" x-show="error" x-text="error" role="alert"></p>
+    <p class="mensaje-exito" x-show="mensaje" x-text="mensaje" role="status"></p>
 
-    <section class="resumen-pagos">
-        <h3>Saldo pendiente total</h3>
-        <p x-text="formatearMonto(totalPendiente)"></p>
+    <div class="estadisticas">
+        <article class="estadistica">
+            <h3>Saldo pendiente total</h3>
+            <p x-text="formatearMonto(totalPendiente)"></p>
+        </article>
+        <article class="estadistica">
+            <h3>Fletes pendientes</h3>
+            <p x-text="registros.length"></p>
+        </article>
+    </div>
 
-        <p>
-            Fletes pendientes:
-            <strong x-text="registros.length"></strong>
-        </p>
-    </section>
-
-    <table>
+    <div class="tabla-scroll">
+    <table class="tabla-acciones">
         <thead>
             <tr>
                 <th>ID</th>
@@ -40,7 +43,7 @@
                 <th>Origen</th>
                 <th>Destino</th>
                 <th>Fecha de salida</th>
-                <th>Monto pendiente</th>
+                <th class="cifra">Monto pendiente</th>
                 <th>Estatus del flete</th>
                 <th>Acciones</th>
             </tr>
@@ -55,16 +58,17 @@
                     <td x-text="flete.id_flete"></td>
                     <td x-text="flete.cliente"></td>
                     <td x-text="flete.chofer"></td>
-                    <td x-text="flete.placas"></td>
+                    <td class="sin-salto" x-text="flete.placas"></td>
                     <td x-text="flete.origen"></td>
                     <td x-text="flete.destino"></td>
-                    <td x-text="flete.fecha_salida || 'Sin fecha'"></td>
-                    <td x-text="formatearMonto(flete.monto)"></td>
-                    <td x-text="etiquetaEstatus(flete.estatus)"></td>
+                    <td class="sin-salto" x-text="flete.fecha_salida || 'Sin fecha'"></td>
+                    <td class="sin-salto cifra" x-text="formatearMonto(flete.monto)"></td>
+                    <td><span class="estatus" :class="flete.estatus" x-text="etiquetaEstatus(flete.estatus)"></span></td>
 
                     <td>
                         <button
                             type="button"
+                            class="boton-tabla"
                             @click="registrarPago(flete)"
                             :disabled="procesandoPago !== null"
                         >
@@ -83,4 +87,5 @@
             </tr>
         </tbody>
     </table>
+    </div>
 </section>
