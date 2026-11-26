@@ -1,0 +1,87 @@
+<section x-data="{
+    inicio: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    fin: new Date().toISOString().split('T')[0],
+    estado: '',
+    registros: [],
+    cargando: false,
+    async consultar() {
+        this.cargando = true;
+        try {
+            const q = new URLSearchParams({ inicio: this.inicio, fin: this.fin, estado: this.estado });
+            const res = await fetch(`api_Reportes.php?${q}`);
+            const json = await res.json();
+            this.registros = json.datos || [];
+        } finally {
+            this.cargando = false;
+        }
+    },
+    get totalMonto() {
+        return this.registros.reduce((acc, r) => acc + Number(r.monto || r.costo || r.total || 0), 0);
+    }
+}" x-init="consultar()">
+
+    <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <img src="imagenes/reportes.svg" alt="Reportes" width="26">
+            <h2 style="margin: 0;">Reportes de Fletes</h2>
+        </div>
+        <button type="button" @click="window.print()">Imprimir / PDF</button>
+    </header>
+
+    <form @submit.prevent="consultar()" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.25rem;">
+        <label>
+            Desde:
+            <input type="date" x-model="inicio">
+        </label>
+        <label>
+            Hasta:
+            <input type="date" x-model="fin">
+        </label>
+        <label>
+            Estado:
+            <select x-model="estado">
+                <option value="">Todos</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="en_curso">En curso</option>
+                <option value="completado">Completado</option>
+                <option value="cancelado">Cancelado</option>
+            </select>
+        </label>
+        <button type="submit" :disabled="cargando" x-text="cargando ? 'Cargando...' : 'Filtrar'"></button>
+    </form>
+
+    <p>
+        Registros: <strong x-text="registros.length"></strong> |
+        Total acumulado: <strong>$<span x-text="totalMonto.toFixed(2)"></span></strong>
+    </p>
+
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Origen</th>
+                    <th>Destino</th>
+                    <th>Estado</th>
+                    <th>Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="item in registros" :key="item.id">
+                    <tr>
+                        <td x-text="item.id"></td>
+                        <td x-text="item.fecha"></td>
+                        <td x-text="item.origen || '-'"></td>
+                        <td x-text="item.destino || '-'"></td>
+                        <td x-text="item.estado || '-'"></td>
+                        <td>$<span x-text="Number(item.monto || item.costo || item.total || 0).toFixed(2)"></span></td>
+                    </tr>
+                </template>
+                <tr x-show="!cargando && registros.length === 0">
+                    <td colspan="6" style="text-align: center;">No hay registros en el rango seleccionado.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
