@@ -1,143 +1,78 @@
-
 <?php
-
-declare(strict_types=1);
-
 header('Content-Type: application/json; charset=utf-8');
 
-
-function responder(int $estado, array $datos): never
-{
-    http_response_code($estado);
-
-    echo json_encode(
-        $datos,
-        JSON_UNESCAPED_UNICODE
-    );
-
-    exit;
-}
-function leerJson(): array
-{
-    $contenido = file_get_contents('php://input');
-
-    $datos = json_decode($contenido ?: '', true);
-
-    if (!is_array($datos)) {
-        responder(400, [
-            'error' => 'El cuerpo JSON no es válido.'
-        ]);
-    }
-
-    return $datos;
+$dbFile = __DIR__ . '/fletes.db';
+if (!file_exists($dbFile)) {
+    require_once __DIR__ . '/setup.php';
 }
 
 try {
-    // RUTA DE LA BASE DE DATOS
-    $rutaBase = __DIR__ . '/database/fletes.sqlite';
+    $pdo = new PDO('sqlite:' . $dbFile);$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Error de conexión: ' . $e->getMessage()]);
+    exit;
+}
 
-    $directorio = dirname($rutaBase);
+$action =$_GET['action'] ?? '';
 
-    if (!is_dir($directorio)) {
-        mkdir($directorio, 0775, true);
-    }
+switch ($action) {
+    case 'reportes_fletes':
+        $inicio    =$_GET['inicio'] ?? date('Y-m-01');
+        $fin       =$_GET['fin']    ?? date('Y-m-d');
+        $estado    =$_GET['estado'] ?? '';
+        $clienteId =$_GET['cliente_id'] ?? '';
+        $choferId  =$_GET['chofer_id'] ?? '';
 
-    $db = new PDO('sqlite:' . $rutaBase);
+        $sql = "
+            SELECT 
+                f.id,
+                f.fecha,
+                f.origen,
+                f.destino,
+                COALESCE(c.nombre, 'Sin cliente') AS cliente,
+                COALESCE(u.placas, 'Sin asignar') AS unidad,
+                COALESCE(ch.nombre, 'Sin asignar') AS chofer,
+                f.monto,
+                f.estado
+            FROM fletes f
+            LEFT JOIN clientes c ON f.cliente_id = c.id
+            LEFT JOIN unidades u ON f.unidad_id = u.id
+            LEFT JOIN choferes ch ON f.chofer_id = ch.id
+            WHERE date(f.fecha) BETWEEN :inicio AND :fin
+        ";
 
-    $db->setAttribute(
-        PDO::ATTR_ERRMODE,
-        PDO::ERRMODE_EXCEPTION
-    );
+        $params = [':inicio' => $inicio, ':fin' =>$fin];
 
-    $db->setAttribute(
-        PDO::ATTR_DEFAULT_FETCH_MODE,
-        PDO::FETCH_ASSOC
-    );
-
-    $metodo = $_SERVER['REQUEST_METHOD'];
-
-    $recurso = $_GET['recurso'] ?? '';
-
-    $id = null;
-
-    if (isset($_GET['id'])) {
-        $id = filter_var(
-            $_GET['id'],
-            FILTER_VALIDATE_INT
-        );
-
-        if ($id === false || $id < 1) {
-            responder(400, [
-                'error' => 'El identificador no es válido.'
-            ]);
+        if ($estado !== '') {$sql .= " AND f.estado = :estado";
+            $params[':estado'] =$estado;
         }
-    }
+        if ($clienteId !== '') {$sql .= " AND f.cliente_id = :cliente_id";
+            $params[':cliente_id'] =$clienteId;
+        }
+        if ($choferId !== '') {$sql .= " AND f.chofer_id = :chofer_id";
+            $params[':chofer_id'] =$choferId;
+        }
 
-    switch ($recurso) {
-        //API Dashboard y KPIs
-        case 'dashboard':
-            if ($metodo === 'GET') {
-                $stmt = $db->query("
-                    SELECT 
-                        COUNT(*) as total_fletes,
-                        SUM(CASE WHEN estatus = 'en_transito' THEN 1 ELSE 0 END) as en_transito,
-                        SUM(CASE WHEN estatus = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-                        SUM(CASE WHEN estatus = 'finalizado' THEN 1 ELSE 0 END) as finalizados
-                    FROM fletes
-                ");
-                responder(200, $stmt->fetch());
-            }
-            break;
+        $sql .= " ORDER BY f.fecha DESC, f.id DESC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
 
-        //Ver el historial completo de fletes
-        case 'historial':
-            if ($metodo === 'GET') {
-                // Hacemos JOIN para traer los nombres en lugar de solo los IDs
-                $stmt = $db->query("
-                    SELECT f.id_flete, f.origen, f.destino, f.estatus, f.fecha_salida, 
-                           c.nombre as cliente, ch.nombre as chofer, u.placas
-                    FROM fletes f
-                    JOIN clientes c ON f.id_cliente = c.id_cliente
-                    JOIN choferes ch ON f.id_chofer = ch.id_chofer
-                    JOIN unidades u ON f.id_unidad = u.id_unidad
-                    ORDER BY f.id_flete DESC
-                ");
-                responder(200, $stmt->fetchAll());
-            }
-            break;
+        echo json_encode([
+            'ok' => true,
+            'registros' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+        ]);
+        break;
 
-        //API Reportes de ingresos
-        case 'reportes':
-            if ($metodo === 'GET') {
-                $stmt = $db->query("
-                    SELECT 
-                        SUM(monto) as ganancias_totales,
-                        SUM(CASE WHEN pagado = 1 THEN monto ELSE 0 END) as cobrado,
-                        SUM(CASE WHEN pagado = 0 THEN monto ELSE 0 END) as por_cobrar
-                    FROM fletes
-                ");
-                $datos = $stmt->fetch();
-                
-                if (!$datos['ganancias_totales']) {
-                    $datos = [
-                        'ganancias_totales' => 0, 
-                        'cobrado' => 0, 
-                        'por_cobrar' => 0
-                    ];
-                }
-                
-                responder(200, $datos);
-            }
-            break;
+    case 'catalogos_reportes':
+        echo json_encode([
+            'ok' => true,
+            'clientes' => $pdo->query("SELECT id, nombre FROM clientes ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC),
+            'choferes' => $pdo->query("SELECT id, nombre FROM choferes ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC),
+        ]);
+        break;
 
-        default:
-            responder(404, ['error' => 'El recurso solicitado no existe.']);
-    }
-
-} catch (Throwable $error) {
-    error_log($error->getMessage());
-
-    responder(500, [
-        'error' => 'Error interno del servidor.'
-    ]);
+    default:
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Acción no válida']);
 }
